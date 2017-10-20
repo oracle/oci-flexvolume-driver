@@ -12,6 +12,8 @@ build:
       name: build
       code: make build
 
+    # Unit tests
+    
     - script:
       name: go fmt
       code: make gofmt
@@ -24,6 +26,8 @@ build:
       name: unit tests
       code: make test
 
+    # Integration tests
+    
     - script:
       name: install terraform
       code: hack/install_terraform.sh
