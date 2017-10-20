@@ -28,7 +28,6 @@ var version string
 
 // GetLogPath returns the default path to the driver log file.
 func GetLogPath() string {
-	// TODO(apryde): Document this ENV var.
 	path := os.Getenv("OCI_FLEXD_DRIVER_LOG_DIR")
 	if path == "" {
 		path = driver.GetDriverDirectory()

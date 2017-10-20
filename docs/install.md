@@ -90,6 +90,6 @@ they will be retrieved from the hosts [OCI metadata service][1].
 
 You can set these in the environment to override the default values.
 
-* `OCI_FLEX_DRIVER_LOG_DIR` - Directory where the log file is written (Default:/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci)
+* `OCI_FLEXD_DRIVER_LOG_DIR` - Directory where the log file is written (Default:/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci)
 
 [1]: https://docs.us-phoenix-1.oraclecloud.com/Content/Compute/Tasks/gettingmetadata.htm
