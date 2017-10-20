@@ -19,7 +19,8 @@ See [here](docs/tutorial.md) for a tutorial and guide to using the flexvolume vo
 
 ## Support
 
-If you need support please raise an issue in Github. You can also contact odx_kubernetes_gb_grp@oracle.com
+Please checkout our documentation. If you find a bug, please raise an
+[issue](https://github.com/oracle/oci-flexvolume-driver/issues/new)
 
 [1]: https://docs.us-phoenix-1.oraclecloud.com/Content/Block/Concepts/overview.htm
 [2]: https://github.com/kubernetes/community/blob/master/contributors/devel/flexvolume.md
