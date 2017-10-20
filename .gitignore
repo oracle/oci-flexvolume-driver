@@ -1,0 +1,29 @@
+# Ignore env
+wercker.env
+
+# Ignore builds
+dist/
+.go/
+.container-*
+.push-*
+.dockerfile-amd64
+bin/
+.wercker
+
+# Binaries for programs and plugins
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Test binary, build with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+test/integration/terraform/.terraform/
+test/integration/terraform/terraform.tfstate
+test/integration/terraform/terraform.tfstate.backup
+
+ansible/site.retry

@@ -1,0 +1,32 @@
+---
+- name: "create driver root directory"
+  file:
+    path: "{{ oci_flexvolume_driver_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0077
+
+- name: "create driver config file"
+  template:
+    src: flexvolume_driver.json.j2
+    dest: "{{ oci_flexvolume_driver_config_path }}"
+    owner: root
+    group: root
+    mode: 0066
+
+- name: "copy API signing key"
+  copy:
+    src:  "{{ oci_key_file }}"
+    dest: "{{ oci_flexvolume_driver_key_path }}"
+    owner: root
+    group: root
+    mode: 0066
+
+- name: "copy driver binary"
+  copy:
+    src: "{{ oci_flexvolume_driver_local_bin }}"
+    dest: "{{ oci_flexvolume_driver_bin_path }}"
+    owner: root
+    group: root
+    mode: 0077
