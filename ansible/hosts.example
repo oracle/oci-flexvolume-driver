@@ -1,0 +1,8 @@
+[all:vars]
+ansible_ssh_user=ubuntu
+
+[kubemasters]
+master ansible_ssh_host=...
+
+[kubeslaves]
+slave1 ansible_ssh_host=...

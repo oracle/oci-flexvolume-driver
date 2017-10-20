@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+  labels:
+    app: nginx
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    ports:
+    - containerPort: 80
+    volumeMounts:
+    - name: {{ VOLUME_OCID_PART }}
+      mountPath: /usr/share/nginx/html
+  volumes:
+  # The volume name must be the last section of the OCID of the volume being
+  # attached (. separated). e.g. if the volume ocid was
+  # "ocid1.volume.oc1.phx.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  # the volume name would be "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  - name: {{ VOLUME_OCID_PART }}
+    flexVolume:
+      driver: "oracle/oci"
+      fsType: "ext4"
