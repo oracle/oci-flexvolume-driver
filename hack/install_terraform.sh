@@ -25,7 +25,6 @@ tar -zxvf linux.tar.gz \
   && mv linux_amd64/terraform-provider-oci_v${TF_OCI_VERSION} /usr/local/bin/terraform-provider-oci \
   && rm linux.tar.gz
 
-#!/bin/bash
 cat << 'EOF' >> /root/.terraformrc
 providers {
   oci = "/usr/local/bin/terraform-provider-oci"
