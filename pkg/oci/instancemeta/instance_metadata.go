@@ -17,7 +17,6 @@ package instancemeta
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 )
 
@@ -28,6 +27,7 @@ const (
 
 // InstanceMetadata holds the subset of the instance metadata retrieved from the
 // local OCI instance metadata API endpoint.
+// https://docs.us-phoenix-1.oraclecloud.com/Content/Compute/Tasks/gettingmetadata.htm
 type InstanceMetadata struct {
 	CompartmentOCID string `json:"compartmentId"`
 	Region          string `json:"region"`
@@ -62,16 +62,16 @@ func (m *metadataGetter) Get() (*InstanceMetadata, error) {
 
 	}
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read instance metadata: %v", err)
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("metadata endpoint returned status %d; expected 200 OK", resp.StatusCode)
 	}
 
-	metadata := &InstanceMetadata{}
-	err = json.Unmarshal(body, metadata)
+	md := &InstanceMetadata{}
+	err = json.NewDecoder(resp.Body).Decode(md)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal instance metadata: %v", err)
+		return nil, err
 	}
 
-	return metadata, nil
+	return md, nil
 }

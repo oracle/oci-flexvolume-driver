@@ -10,10 +10,12 @@ build:
 
     - script:
       name: build
-      code: make build
+      code: |
+        make build
+        make build-integration-tests
 
     # Unit tests
-    
+
     - script:
       name: go fmt
       code: make gofmt
@@ -27,7 +29,7 @@ build:
       code: make test
 
     # Integration tests
-    
+
     - script:
       name: install terraform
       code: hack/install_terraform.sh
