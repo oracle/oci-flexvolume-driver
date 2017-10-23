@@ -14,8 +14,6 @@ build:
         make build
         make build-integration-tests
 
-    # Unit tests
-
     - script:
       name: go fmt
       code: make gofmt
@@ -28,25 +26,37 @@ build:
       name: unit tests
       code: make test
 
-    # Integration tests
+    - script:
+      name: copy build artifacts
+      code: cp -R dist ${WERCKER_OUTPUT_DIR}/
 
     - script:
-      name: install terraform
-      code: hack/install_terraform.sh
-
-    - script:
-      name: integration tests
-      code: test/integration/run.sh
-
-    - script:
-      name: copy binary
+      name: copy test artifacts
       code: |
-        cp dist/bin/oci ${WERCKER_OUTPUT_DIR}
+        mkdir -p ${WERCKER_OUTPUT_DIR}/test
+        cp -R test/integration ${WERCKER_OUTPUT_DIR}/test/
+        cp -R test/system ${WERCKER_OUTPUT_DIR}/test/
 
-deploy:
+integration-test:
+  box:
+    id: wcr.io/$DOCKER_REGISTRY_USERNAME/oci-flexvolume-driver-system-test:1.0.0
+    registry: https://wcr.io/v2
+    username: $DOCKER_REGISTRY_USERNAME
+    password: $DOCKER_REGISTRY_PASSWORD
   steps:
     - script:
-        name: set ENV vars
+        name: integration test
+        code: ./test/integration/run.sh
+
+system-test:
+  box:
+    id: wcr.io/$DOCKER_REGISTRY_USERNAME/oci-flexvolume-driver-system-test:1.0.0
+    registry: https://wcr.io/v2
+    username: $DOCKER_REGISTRY_USERNAME
+    password: $DOCKER_REGISTRY_PASSWORD
+  steps:
+    - script:
+        name: system test
         code: |
-          export VERSION=$(cat VERSION.txt)
-          echo "Deploying new tag ${VERSION}"
+          cd test/system
+          ./runner.py
