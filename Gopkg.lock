@@ -14,6 +14,12 @@
   revision = "8bd0f941051cb0b148782b962b81b5d4f510f30a"
 
 [[projects]]
+  branch = "v2"
+  name = "gopkg.in/yaml.v2"
+  packages = ["."]
+  revision = "eb3733d160e74a9c7e442f435eb3bea458e1d19f"
+
+[[projects]]
   branch = "master"
   name = "k8s.io/apimachinery"
   packages = ["pkg/util/errors","pkg/util/sets","pkg/util/validation/field"]
@@ -28,6 +34,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "3d467d1184f123234ccae0c8743ff61e4f42a8665b595ce284f9fc603b7c398f"
+  inputs-digest = "7b6100ebf38b9477b81061c210652bbd17c44ed00e1009199eebc29bbec60d20"
   solver-name = "gps-cdcl"
   solver-version = 1

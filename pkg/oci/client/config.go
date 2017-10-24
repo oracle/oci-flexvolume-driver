@@ -15,12 +15,14 @@
 package client
 
 import (
-	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"strings"
 
+	yaml "gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/oracle/oci-flexvolume-driver/pkg/oci/instancemeta"
@@ -32,25 +34,42 @@ var ociRegions = map[string]string{
 	"fra": "eu-frankfurt-1",
 }
 
-// Config holds the details required to communicate with the OCI API.
+// AuthConfig holds the configuration required for communicating with the OCI
+// API.
+type AuthConfig struct {
+	Region          string `yaml:"region"`
+	RegionKey       string `yaml:"regionKey"`
+	TenancyOCID     string `yaml:"tenancy"`
+	CompartmentOCID string `yaml:"compartment"`
+	UserOCID        string `yaml:"user"`
+	PrivateKey      string `yaml:"key"`
+	Fingerprint     string `yaml:"fingerprint"`
+}
+
+// Config holds the configuration for the OCI flexvolume driver.
 type Config struct {
-	Region         string `json:"region"`
-	RegionKey      string `json:"region_key"`
-	TenancyID      string `json:"tenancy_ocid"`
-	CompartmentID  string `json:"compartment_ocid"`
-	UserID         string `json:"user_ocid"`
-	PrivateKeyFile string `json:"key_file"`
-	Fingerprint    string `json:"fingerprint"`
+	Auth AuthConfig `yaml:"auth"`
 
 	metadata instancemeta.Interface
 }
 
 // NewConfig creates a new Config based on the contents of the given io.Reader.
 func NewConfig(r io.Reader) (*Config, error) {
-	c, err := unmarshalConfig(r)
+	if r == nil {
+		return nil, errors.New("no config provided")
+	}
+
+	c := &Config{}
+
+	b, err := ioutil.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
+	err = yaml.Unmarshal(b, &c)
+	if err != nil {
+		return nil, err
+	}
+
 	c.metadata = instancemeta.New()
 
 	if err := c.setDefaults(); err != nil {
@@ -75,31 +94,22 @@ func ConfigFromFile(path string) (*Config, error) {
 	return NewConfig(f)
 }
 
-func unmarshalConfig(r io.Reader) (*Config, error) {
-	c := &Config{}
-	err := json.NewDecoder(r).Decode(c)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal config: %v", err)
-	}
-	return c, nil
-}
-
 func (c *Config) setDefaults() error {
-	if c.Region == "" || c.CompartmentID == "" {
+	if c.Auth.Region == "" || c.Auth.CompartmentOCID == "" {
 		meta, err := c.metadata.Get()
 		if err != nil {
 			return err
 		}
 
-		if c.Region == "" {
-			c.Region = meta.Region
+		if c.Auth.Region == "" {
+			c.Auth.Region = meta.Region
 		}
-		if c.CompartmentID == "" {
-			c.CompartmentID = meta.CompartmentOCID
+		if c.Auth.CompartmentOCID == "" {
+			c.Auth.CompartmentOCID = meta.CompartmentOCID
 		}
 	}
 
-	err := c.setRegionFields(c.Region)
+	err := c.setRegionFields(c.Auth.Region)
 	if err != nil {
 		return fmt.Errorf("setting config region fields: %v", err)
 	}
@@ -128,8 +138,8 @@ func (c *Config) setRegionFields(region string) error {
 		key = region
 	}
 
-	c.Region = name
-	c.RegionKey = key
+	c.Auth.Region = name
+	c.Auth.RegionKey = key
 
 	return nil
 }
@@ -142,25 +152,25 @@ func (c *Config) validate() error {
 func validateConfig(c *Config) field.ErrorList {
 	errList := field.ErrorList{}
 
-	if c.Region == "" {
+	if c.Auth.Region == "" {
 		errList = append(errList, field.Required(field.NewPath("region"), ""))
 	}
-	if c.RegionKey == "" {
+	if c.Auth.RegionKey == "" {
 		errList = append(errList, field.Required(field.NewPath("region_key"), ""))
 	}
-	if c.TenancyID == "" {
-		errList = append(errList, field.Required(field.NewPath("tenancy_ocid"), ""))
+	if c.Auth.TenancyOCID == "" {
+		errList = append(errList, field.Required(field.NewPath("tenancy"), ""))
 	}
-	if c.CompartmentID == "" {
-		errList = append(errList, field.Required(field.NewPath("compartment_ocid"), ""))
+	if c.Auth.CompartmentOCID == "" {
+		errList = append(errList, field.Required(field.NewPath("compartment"), ""))
 	}
-	if c.UserID == "" {
-		errList = append(errList, field.Required(field.NewPath("user_ocid"), ""))
+	if c.Auth.UserOCID == "" {
+		errList = append(errList, field.Required(field.NewPath("user"), ""))
 	}
-	if c.PrivateKeyFile == "" {
-		errList = append(errList, field.Required(field.NewPath("key_file"), ""))
+	if c.Auth.PrivateKey == "" {
+		errList = append(errList, field.Required(field.NewPath("key"), ""))
 	}
-	if c.Fingerprint == "" {
+	if c.Auth.Fingerprint == "" {
 		errList = append(errList, field.Required(field.NewPath("fingerprint"), ""))
 	}
 

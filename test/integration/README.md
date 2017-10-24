@@ -35,8 +35,9 @@ place for detailed inspection.
 $ cd test/integration
 $ ./run.sh --no-destroy
 $ cd terraform/
-$ ssh -i _tmp/instance_key opc@<instance ip>
+$ ssh -i _tmp/instance_key opc@$(terraform output instance_public_ip)
 $ # Debug some stuff...
+$ export TF_VAR_test_id=$(terraform output test_id)
 $ terraform destroy .
 ```
 
