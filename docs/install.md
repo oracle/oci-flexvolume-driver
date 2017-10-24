@@ -15,7 +15,7 @@ make build
 Now you can use ansible to deploy the driver to your cluster
 
 ```
-cd dist/ansible
+cd ansible
 ```
 
 Create an inventory file
@@ -64,19 +64,22 @@ The driver requires API credentials for a OCI account with the ability
 to attach and detach [OCI block storage volumes][1] from to/from the appropriate
 nodes in the cluster.
 
-These credentials should be provided via a JSON file present on the nodes in the
-cluster at `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci/flexvolume_driver.json`
+These credentials should be provided via a YAML file present on _all_ nodes in
+the cluster at `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci/config.yaml`
 in the following format:
 
-```
-{
-    "user_ocid": "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "compartment_ocid": "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "region": "us-phoenix-1",
-    "tenancy_ocid": "ocid1.tenancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-    "fingerprint": "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
-    "key_file": "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci/flexvolume_driver.pem"
-}
+```yaml
+---
+auth:
+  tenancy: ocid1.tenancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  compartment: ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  user: ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  region: us-phoenix-1
+  key: |
+    -----BEGIN RSA PRIVATE KEY-----
+    <snip>
+    -----END RSA PRIVATE KEY-----
+  fingerprint: d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e
 ```
 
 The signing key corresponding to the OCI user should be provided at the path
@@ -90,6 +93,6 @@ they will be retrieved from the hosts [OCI metadata service][1].
 
 You can set these in the environment to override the default values.
 
-* `OCI_FLEXD_DRIVER_LOG_DIR` - Directory where the log file is written (Default:/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci)
+* `OCI_FLEXD_DRIVER_LOG_DIR` - Directory where the log file is written (Default: `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci`)
 
 [1]: https://docs.us-phoenix-1.oraclecloud.com/Content/Compute/Tasks/gettingmetadata.htm
