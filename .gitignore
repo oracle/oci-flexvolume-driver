@@ -27,4 +27,11 @@ test/integration/terraform/.terraform/
 test/integration/terraform/terraform.tfstate
 test/integration/terraform/terraform.tfstate.backup
 
-ansible/site.retry
+test/system/terraform/.terraform/
+test/system/terraform/terraform.tfstate
+test/system/terraform/terraform.tfstate.backup
+test/system/ansible_inventory
+test/system/replication-controller.yaml
+test/system/runner.log
+
+*.retry

@@ -37,20 +37,24 @@ MAX_NUM_LOCKFILE_RETRIES = 100
 
 
 def _check_env():
+    should_exit = False
     if "OCI_API_KEY" not in os.environ and "OCI_API_KEY_VAR" not in os.environ:
         _log("Error. Can't find either OCI_API_KEY or OCI_API_KEY_VAR in the environment.")
-        sys.exit(1)
+        should_exit = True
     if "INSTANCE_KEY" not in os.environ and "INSTANCE_KEY_VAR" not in os.environ:
         _log("Error. Can't find either INSTANCE_KEY or INSTANCE_KEY_VAR in the environment.")
-        sys.exit(1)
+        should_exit = True
     if "MASTER_IP" not in os.environ:
         _log("Error. Can't find MASTER_IP in the environment.")
-        sys.exit(1)
+        should_exit = True
     if "SLAVE0_IP" not in os.environ:
         _log("Error. Can't find SLAVE0_IP in the environment.")
-        sys.exit(1)
+        should_exit = True
     if "SLAVE1_IP" not in os.environ:
         _log("Error. Can't find SLAVE1_IP in the environment.")
+        should_exit = True
+
+    if should_exit:
         sys.exit(1)
 
 
@@ -231,28 +235,27 @@ def _create_rc_yaml(volume_name):
     return "replication-controller.yaml"
 
 
-def _install_driver(instance_ip):
-    _run_command(_scp(instance_ip, "../../dist/bin/oci", "/home/opc"), ".")
-    _run_command(_ssh(instance_ip, "sudo mkdir -p " + DRIVER_DIR), ".")
-    _run_command(_ssh(instance_ip, "sudo cp /home/opc/oci " + DRIVER_DIR), ".")
+def _ansible_inventory(master, slaves):
+    contents = (
+        "[masters]\n"
+        "{master_ip} ansible_user=opc\n"
+        "\n"
+        "[slaves]\n").format(master_ip=master)
+    for slave in slaves:
+        contents += "{ip} ansible_user=opc\n".format(ip=slave)
+
+    return contents
 
 
-def _restart_controller(instance_ip):
-    (stdout, _, _) = _run_command(_ssh(instance_ip, "docker ps | " +
-                                                    "grep k8s_kube-controller-manager"), ".")
-    _run_command(_ssh(instance_ip, "docker stop " + stdout.split()[0]), ".")
+def _install_driver():
+    master, slaves = _get_cluster_ips()
+    with open("ansible_inventory", "w") as inventory:
+        inventory.write(_ansible_inventory(master, slaves))
 
-
-def _restart_kubelet(instance_ip):
-    _run_command(_ssh(instance_ip, "sudo systemctl restart kubelet.service"), ".")
-
-
-def _install_oci_creds(instance_ip):
-    _run_command(_scp(instance_ip, "flexvolume_driver.json", "/home/opc"), ".")
-    _run_command(_scp(instance_ip, _get_oci_api_key_file(), "/home/opc"), ".")
-    _run_command(_ssh(instance_ip, "sudo mkdir -p " + DRIVER_DIR), ".")
-    _run_command(_ssh(instance_ip, "sudo cp /home/opc/flexvolume_driver.json " + DRIVER_DIR), ".")
-    _run_command(_ssh(instance_ip, "sudo cp /home/opc/oci_api_key.pem " + DRIVER_DIR), ".")
+    _run_command("ansible-playbook " +
+                 "-i ansible_inventory " +
+                 "--private-key " + TMP_INSTANCE_KEY +
+                 " playbook.yaml", ".")
 
 
 def _get_pod_infos(instance_ip):
@@ -288,7 +291,7 @@ def _wait_for_pod_status(instance_ip, desired_status):
 
 def _main():
     _reset_debug_file()
-    parser = argparse.ArgumentParser(description='Description of your program')
+    parser = argparse.ArgumentParser(description='System test runner for the OCI Block Volume flexvolume driver')
     parser.add_argument('--no-create',
                         help='Disable the creation of the test volume',
                         action='store_true',
@@ -320,6 +323,7 @@ def _main():
 
     _log("Waiting for the cluster to be available", as_banner=True)
     _wait_for_cluster(master_ip)
+
     def _delete_lock_file_atexit():
         if not _delete_lock_file(master_ip):
             _log("Error. Failed to delete lockfile: " + LOCKFILE)
@@ -344,21 +348,8 @@ def _main():
 
     if not args['no_setup']:
         _log("Installing flexvolume driver on all of the the nodes", as_banner=True)
-        _install_driver(master_ip)
-        for slave_ip in slave_ips:
-            _install_driver(slave_ip)
-
-        _log("Syncing oci creds to all the nodes", as_banner=True)
-        _install_oci_creds(master_ip)
-        for slave_ip in slave_ips:
-            _install_oci_creds(slave_ip)
-
-        _log("Restarting the controller manager on the master", as_banner=True)
-        _restart_controller(master_ip)
-
-        _log("Restarting the kubelet on all the nodes", as_banner=True)
-        for slave_ip in slave_ips:
-            _restart_kubelet(slave_ip)
+        _install_driver()
+        time.sleep(30)  # wait for Docker to come back up
 
         _log("Syncing test resources to the master", as_banner=True)
         _run_command(_scp(master_ip, _create_rc_yaml(volume_name), "/home/opc"), ".")

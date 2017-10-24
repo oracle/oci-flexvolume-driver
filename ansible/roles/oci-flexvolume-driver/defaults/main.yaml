@@ -7,5 +7,3 @@ oci_flexvolume_driver_local_bin: "{{ role_path }}/../../../dist/bin/{{ oci_flexv
 
 oci_local_config: ~/.oci/config
 oci_local_config_section: DEFAULT
-
-oci_key_file_contents: "{{ lookup('file', oci_key_file) }}"
