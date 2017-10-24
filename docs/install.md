@@ -82,11 +82,7 @@ auth:
   fingerprint: d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e
 ```
 
-The signing key corresponding to the OCI user should be provided at the path
-referenced by the `"key_file"` field (e.g.
-`/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci/flexvolume_driver.pem`.)
-
-If `"region"` and/or `"compartment_ocid"` are not specified in the config file
+If `"region"` and/or `"compartment"` are not specified in the config file
 they will be retrieved from the hosts [OCI metadata service][1].
 
 #### Extra configuration values
