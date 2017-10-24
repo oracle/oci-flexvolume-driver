@@ -1,10 +1,11 @@
 ---
 oci_flexvolume_driver_root: /usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci
-oci_flexvolume_driver_config_path: "{{ oci_flexvolume_driver_root }}/flexvolume_driver.json"
-oci_flexvolume_driver_key_path: "{{ oci_flexvolume_driver_root }}/flexvolume_driver.pem"
+oci_flexvolume_driver_config_path: "{{ oci_flexvolume_driver_root }}/config.yaml"
 oci_flexvolume_driver_bin_name: oci
 oci_flexvolume_driver_bin_path: "{{ oci_flexvolume_driver_root }}/{{ oci_flexvolume_driver_bin_name }}"
-oci_flexvolume_driver_local_bin: "../bin/{{ oci_flexvolume_driver_bin_name }}"
+oci_flexvolume_driver_local_bin: "{{ role_path }}/../../../dist/bin/{{ oci_flexvolume_driver_bin_name }}"
 
 oci_local_config: ~/.oci/config
 oci_local_config_section: DEFAULT
+
+oci_key_file_contents: "{{ lookup('file', oci_key_file) }}"

@@ -1,0 +1,7 @@
+---
+auth:
+  tenancy: {{ oci_tenancy }}
+  user: {{ oci_user }}
+  key: |
+    {{ oci_key_file_contents | indent(width=4) }}
+  fingerprint: {{ oci_fingerprint }}
