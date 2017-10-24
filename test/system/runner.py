@@ -35,6 +35,7 @@ TIMEOUT = 120
 LOCKFILE = "/tmp/system-test-lock-file"
 MAX_NUM_LOCKFILE_RETRIES = 100
 
+
 def _check_env():
     if "OCI_API_KEY" not in os.environ and "OCI_API_KEY_VAR" not in os.environ:
         _log("Error. Can't find either OCI_API_KEY or OCI_API_KEY_VAR in the environment.")
@@ -237,7 +238,7 @@ def _install_driver(instance_ip):
 
 
 def _restart_controller(instance_ip):
-    (stdout, _, _) = _run_command(_ssh(instance_ip, "docker ps | " + \
+    (stdout, _, _) = _run_command(_ssh(instance_ip, "docker ps | " +
                                                     "grep k8s_kube-controller-manager"), ".")
     _run_command(_ssh(instance_ip, "docker stop " + stdout.split()[0]), ".")
 
@@ -277,8 +278,8 @@ def _wait_for_pod_status(instance_ip, desired_status):
         num_polls += 1
         if num_polls == TIMEOUT:
             for i in infos:
-                _log("Error: Pod: " + i[0] + " " + \
-                     "failed to achieve status: " + desired_status + "." + \
+                _log("Error: Pod: " + i[0] + " " +
+                     "failed to achieve status: " + desired_status + "." +
                      "Final status was: " + i[1])
             sys.exit(1)
         infos = _get_pod_infos(instance_ip)
@@ -372,13 +373,13 @@ def _main():
         (podname1, _, node1) = _wait_for_pod_status(master_ip, "Running")
 
         _log("Writing a file to the flexvolume mounted in the pod.")
-        _run_command(_ssh(master_ip, "kubectl exec " + podname1 + \
+        _run_command(_ssh(master_ip, "kubectl exec " + podname1 +
                                      " -- touch /usr/share/nginx/html/hello.txt"), ".")
 
         _log("Does the new file exist?")
-        (stdout, _, _) = _run_command(_ssh(master_ip, "kubectl exec " + podname1 + \
+        (stdout, _, _) = _run_command(_ssh(master_ip, "kubectl exec " + podname1 +
                                                       " -- ls /usr/share/nginx/html"), ".")
-        if not "hello.txt" in stdout.split("\n"):
+        if "hello.txt" not in stdout.split("\n"):
             _log("Error: Failed to find file hello.txt in mounted volume")
             sys.exit(1)
         _log("Yes it does!")
@@ -397,9 +398,9 @@ def _main():
             sys.exit(1)
 
         _log("Does the new file still exist?")
-        (stdout, _, _) = _run_command(_ssh(master_ip, "kubectl exec " + podname2 + \
+        (stdout, _, _) = _run_command(_ssh(master_ip, "kubectl exec " + podname2 +
                                                       " -- ls /usr/share/nginx/html"), ".")
-        if not "hello.txt" in stdout.split("\n"):
+        if "hello.txt" not in stdout.split("\n"):
             _log("Error: Failed to find file hello.txt in mounted volume")
             sys.exit(1)
         _log("Yes it does!")
