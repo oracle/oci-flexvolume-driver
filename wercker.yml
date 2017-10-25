@@ -9,14 +9,18 @@ build:
         cat ${WERCKER_OUTPUT_DIR}/VERSION.txt
 
     - script:
-      name: build
-      code: |
-        make build
-        make build-integration-tests
+      name: check boilerplate
+      code: ./hack/verify-boilerplate.sh
 
     - script:
       name: go fmt
       code: make gofmt
+
+    - script:
+      name: build
+      code: |
+        make build
+        make build-integration-tests
 
     - script:
       name: go vet
