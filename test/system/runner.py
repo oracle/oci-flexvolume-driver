@@ -11,7 +11,6 @@ import sys
 import time
 
 TMP_OCI_API_KEY = "/tmp/oci_api_key.pem"
-TMP_KUBECONFIG = "/tmp/kubeconfig.conf"
 TMP_INSTANCE_KEY = "/tmp/instance_key"
 DEBUG_FILE = "runner.log"
 DRIVER_DIR = "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci"
@@ -21,9 +20,6 @@ TIMEOUT = 120
 def _check_env():
     if "OCI_API_KEY" not in os.environ and "OCI_API_KEY_VAR" not in os.environ:
         _log("Error. Can't find either OCI_API_KEY or OCI_API_KEY_VAR in the environment.")
-        sys.exit(1)
-    if "KUBECONFIG" not in os.environ and "KUBECONFIG_VAR" not in os.environ:
-        _log("Error. Can't find either KUBECONFIG or KUBECONFIG_VAR in the environment.")
         sys.exit(1)
     if "INSTANCE_KEY" not in os.environ and "INSTANCE_KEY_VAR" not in os.environ:
         _log("Error. Can't find either INSTANCE_KEY or INSTANCE_KEY_VAR in the environment.")
@@ -43,8 +39,6 @@ def _create_key_files():
     if "OCI_API_KEY_VAR" in os.environ:
         _run_command("echo \"$OCI_API_KEY_VAR\" > " + TMP_OCI_API_KEY, ".")
         _run_command("chmod 600 " + TMP_OCI_API_KEY, ".")
-    if "KUBECONFIG_VAR" in os.environ:
-        _run_command("echo \"$KUBECONFIG_VAR\" > " + TMP_KUBECONFIG, ".")
     if "INSTANCE_KEY_VAR" in os.environ:
         _run_command("echo \"$INSTANCE_KEY_VAR\" > " + TMP_INSTANCE_KEY, ".")
         _run_command("chmod 600 " + TMP_INSTANCE_KEY, ".")
@@ -53,10 +47,16 @@ def _create_key_files():
 def _destroy_key_files():
     if "OCI_API_KEY_VAR" in os.environ:
         os.remove(TMP_OCI_API_KEY)
-    if "KUBECONFIG_VAR" in os.environ:
-        os.remove(TMP_KUBECONFIG)
     if "INSTANCE_KEY_VAR" in os.environ:
         os.remove(TMP_INSTANCE_KEY)
+
+
+def _get_oci_api_key_file():
+    return os.environ['OCI_API_KEY'] if "OCI_API_KEY" in os.environ else TMP_OCI_API_KEY
+
+
+def _get_instance_key_file():
+    return os.environ['INSTANCE_KEY'] if "INSTANCE_KEY" in os.environ else TMP_INSTANCE_KEY
 
 
 def _banner(as_banner, bold):
@@ -156,14 +156,14 @@ def _scp(instance_ip, src, dest):
     return "scp -o UserKnownHostsFile=/dev/null " + \
            "-o LogLevel=quiet " + \
            "-o StrictHostKeyChecking=no " + \
-           "-i " + TMP_INSTANCE_KEY + " " + src + " opc@" + instance_ip + ":" + dest
+           "-i " + _get_instance_key_file() + " " + src + " opc@" + instance_ip + ":" + dest
 
 
 def _ssh(instance_ip, cmd):
     return "ssh -o UserKnownHostsFile=/dev/null " + \
            "-o LogLevel=quiet " + \
            "-o StrictHostKeyChecking=no " + \
-           "-i " + TMP_INSTANCE_KEY + " opc@" + instance_ip + " " + \
+           "-i " + _get_instance_key_file() + " opc@" + instance_ip + " " + \
            "\"bash --login -c \'" + cmd + "\'\""
 
 
@@ -194,7 +194,7 @@ def _restart_kubelet(instance_ip):
 
 def _install_oci_creds(instance_ip):
     _run_command(_scp(instance_ip, "flexvolume_driver.json", "/home/opc"), ".")
-    _run_command(_scp(instance_ip, TMP_OCI_API_KEY, "/home/opc"), ".")
+    _run_command(_scp(instance_ip, _get_oci_api_key_file(), "/home/opc"), ".")
     _run_command(_ssh(instance_ip, "sudo mkdir -p " + DRIVER_DIR), ".")
     _run_command(_ssh(instance_ip, "sudo cp /home/opc/flexvolume_driver.json " + DRIVER_DIR), ".")
     _run_command(_ssh(instance_ip, "sudo cp /home/opc/oci_api_key.pem " + DRIVER_DIR), ".")
