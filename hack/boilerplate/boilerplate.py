@@ -131,7 +131,18 @@ def file_extension(filename):
     return os.path.splitext(filename)[1].split(".")[-1].lower()
 
 
-skipped_dirs = ['.git', "vendor", "hack/boilerplate/test", ".wercker"]
+skipped_dirs = [
+    '.git',
+    ".wercker",
+    "vendor",
+
+    # Imported from Kubernetes maintaining origional copyright header
+    "hack/boilerplate/boilerplate.py",
+    "hack/boilerplate/boilerplate_test.py",
+    "hack/boilerplate/test",
+    "hack/verify-boilerplate.sh",
+    "pkg/mount",
+]
 
 
 def normalize_files(files):
