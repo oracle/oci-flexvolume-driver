@@ -3,14 +3,14 @@
 # Runs the integration tests for the OCI flexvolume driver.
 #
 # Required ENV vars:
-#  - $OCI_API_KEY:      base64 encoded OCI API signing key.
-#  - $INSTANCE_KEY:     base64 encoded SSH private key corresponding to
-#                       $INSTANCE_KEY_PUB.
-#  - $INSTANCE_KEY_PUB: base64 encoded SSH public key (added to instance
-#                       authorized keys).
+#  - $OCI_API_KEY (pointing to the pem file) or 
+#    $OCI_API_KEY_VAR (containing the pem file content)
+#  - $INSTANCE_KEY (pointing to the private key file) or 
+#    $INSTANCE_KEY_VAR (containing the private key file content)
+#  - $INSTANCE_KEY_PUB (pointing to the public key file) or 
+#    $INSTANCE_KEY_PUB_VAR (containing the public key file content)
 
 set -o errexit
-set -o nounset
 set -o pipefail
 
 function help_text() {
@@ -21,6 +21,21 @@ function help_text() {
     echo "optional arguments:"
     echo "  -h, --help            show this help message and exit"
     echo "  --no-destroy          leave the test infrastructure up on completion"
+}
+
+function check_env() {
+    if [[ ! -n "$1" ]] && [[ ! -n "$2" ]]; then
+        echo "Error: Either $3 or $4 must be set"
+        exit 1
+    fi
+}
+
+function create_key_file() {
+    if [[ -n "$1" ]]; then
+        cp "$1" $3
+    else
+        echo "$2" > $3
+    fi
 }
 
 # Whether or not to leave the instance and volume in-place after executing the
@@ -66,10 +81,15 @@ function _trap_1 {
 }
 trap _trap_1 EXIT
 
+# Check environment.
+check_env "$OCI_API_KEY" "$OCI_API_KEY_VAR" "OCI_API_KEY" "OCI_API_KEY_VAR"
+check_env "$INSTANCE_KEY" "$INSTANCE_KEY_VAR" "INSTANCE_KEY" "INSTANCE_KEY_VAR"
+check_env "$INSTANCE_KEY_PUB" "$INSTANCE_KEY_PUB_VAR" "INSTANCE_KEY_PUB" "INSTANCE_KEY_PUB_VAR"
+
 # Set keys from environment.
-echo $OCI_API_KEY | openssl enc -base64 -d -A > _tmp/oci_api_key.pem
-echo $INSTANCE_KEY | openssl enc -base64 -d -A > _tmp/instance_key
-echo $INSTANCE_KEY_PUB | openssl enc -base64 -d -A > _tmp/instance_key.pub
+create_key_file "$OCI_API_KEY" "$OCI_API_KEY_VAR" "_tmp/oci_api_key.pem"
+create_key_file "$INSTANCE_KEY" "$INSTANCE_KEY_VAR" "_tmp/instance_key"
+create_key_file "$INSTANCE_KEY_PUB" "$INSTANCE_KEY_PUB_VAR" "_tmp/instance_key.pub"
 chmod 600 _tmp/instance_key
 chmod 600 _tmp/oci_api_key.pem
 
