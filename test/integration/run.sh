@@ -18,11 +18,13 @@
 #
 # Required ENV vars:
 #  - $OCI_API_KEY (pointing to the pem file) or 
-#    $OCI_API_KEY_VAR (containing the pem file content)
+#    $OCI_API_KEY_VAR (containing the base64 encoded pem file content)
+#
 #  - $INSTANCE_KEY (pointing to the private key file) or 
-#    $INSTANCE_KEY_VAR (containing the private key file content)
+#    $INSTANCE_KEY_VAR (containing the base64 encoded private key file content)
+#
 #  - $INSTANCE_KEY_PUB (pointing to the public key file) or 
-#    $INSTANCE_KEY_PUB_VAR (containing the public key file content)
+#    $INSTANCE_KEY_PUB_VAR (containing the base64 encoded public key file content)
 
 set -o errexit
 set -o pipefail
@@ -48,7 +50,7 @@ function create_key_file() {
     if [[ -n "$1" ]]; then
         cp "$1" $3
     else
-        echo "$2" > $3
+        echo "$2" | openssl enc -base64 -d -A > $3
     fi
 }
 
