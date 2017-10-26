@@ -51,10 +51,10 @@ def _check_env():
 
 def _create_key_files():
     if "OCI_API_KEY_VAR" in os.environ:
-        _run_command("echo \"$OCI_API_KEY_VAR\" > " + TMP_OCI_API_KEY, ".")
+        _run_command("echo \"$OCI_API_KEY_VAR\" | openssl enc -base64 -d -A > " + TMP_OCI_API_KEY, ".")
         _run_command("chmod 600 " + TMP_OCI_API_KEY, ".")
     if "INSTANCE_KEY_VAR" in os.environ:
-        _run_command("echo \"$INSTANCE_KEY_VAR\" > " + TMP_INSTANCE_KEY, ".")
+        _run_command("echo \"$INSTANCE_KEY_VAR\" | openssl enc -base64 -d -A > " + TMP_INSTANCE_KEY, ".")
         _run_command("chmod 600 " + TMP_INSTANCE_KEY, ".")
 
 
