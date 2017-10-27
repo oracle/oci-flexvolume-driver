@@ -54,10 +54,15 @@ func GetConfigPath() string {
 // Init checks that we have the appropriate credentials and metadata API access
 // on driver initialisation.
 func (d OCIFlexvolumeDriver) Init() flexvolume.DriverStatus {
-	_, err := client.New(GetConfigPath())
-	if err != nil {
-		return flexvolume.Fail(err)
-	}
+	/*
+	 * TODO(apryde): Can we differentiate between shell outs from the KCM
+	 * and the Kubelet? If so we should check config here, otherwise, we
+	 * can't.
+	 *_, err := client.New(GetConfigPath())
+	 *if err != nil {
+	 *        return flexvolume.Fail(err)
+	 *}
+	 */
 
 	return flexvolume.Succeed()
 }
@@ -141,6 +146,9 @@ func (d OCIFlexvolumeDriver) WaitForAttach(mountDevice string, _ flexvolume.Opti
 }
 
 // IsAttached checks whether the volume is attached to the host.
+// TODO(apryde): The documentation states that this is called from the Kubelet
+// and KCM. Implementation requries credentials which won't be present on nodes
+// but I've only ever seen it called by the KCM.
 func (d OCIFlexvolumeDriver) IsAttached(opts flexvolume.Options, nodeName string) flexvolume.DriverStatus {
 	c, err := client.New(GetConfigPath())
 	if err != nil {
