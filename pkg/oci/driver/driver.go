@@ -79,10 +79,12 @@ func (d OCIFlexvolumeDriver) Attach(opts flexvolume.Options, nodeName string) fl
 
 	log.Printf("Attaching volume %s -> instance %s", volumeOCID, instance.ID)
 
-	// If we get a 409 conflict response when attaching we presume that the
-	// device is already attached and succeed.
-	if _, err = c.AttachVolume("iscsi", instance.ID, volumeOCID, nil); err != nil {
+	attachment, err := c.AttachVolume("iscsi", instance.ID, volumeOCID, nil)
+	if err != nil {
 		if err, ok := err.(*baremetal.Error); ok {
+			// If we get a 409 conflict response when attaching we
+			// presume that the device is already attached and
+			// succeed.
 			if err.Status != "409" {
 				log.Printf("AttachVolume: %+v", err)
 				return flexvolume.Fail(err)
@@ -91,9 +93,16 @@ func (d OCIFlexvolumeDriver) Attach(opts flexvolume.Options, nodeName string) fl
 		}
 	}
 
+	attachment, err = c.WaitForVolumeAttached(attachment.ID)
+	if err != nil {
+		return flexvolume.Fail(err)
+	}
+
+	log.Printf("attach: %s attached", attachment.ID)
+
 	return flexvolume.DriverStatus{
 		Status: flexvolume.StatusSuccess,
-		Device: "undefined",
+		Device: fmt.Sprintf(diskIDByPathTemplate, attachment.IPv4, attachment.Port, attachment.IQN),
 	}
 }
 
@@ -120,30 +129,10 @@ func (d OCIFlexvolumeDriver) Detach(pvOrVolumeName, nodeName string) flexvolume.
 
 // WaitForAttach searches for the the volume attachment created by Attach() and
 // waits for its life cycle state to reach ATTACHED.
-func (d OCIFlexvolumeDriver) WaitForAttach(_ string, opts flexvolume.Options) flexvolume.DriverStatus {
-	c, err := client.New(GetConfigPath())
-	if err != nil {
-		return flexvolume.Fail(err)
-	}
-
-	volumeOCID := fmt.Sprintf(volumeOCIDTemplate, c.GetConfig().Auth.RegionKey, opts["kubernetes.io/pvOrVolumeName"])
-	attachment, err := c.FindVolumeAttachment(volumeOCID)
-	if err != nil {
-		return flexvolume.Fail(err)
-	}
-
-	log.Printf("attach: found volume attachment %s", attachment.ID)
-
-	attachment, err = c.WaitForVolumeAttached(attachment.ID)
-	if err != nil {
-		return flexvolume.Fail(err)
-	}
-
-	log.Printf("attach: %s attached", attachment.ID)
-
+func (d OCIFlexvolumeDriver) WaitForAttach(mountDevice string, _ flexvolume.Options) flexvolume.DriverStatus {
 	return flexvolume.DriverStatus{
 		Status: flexvolume.StatusSuccess,
-		Device: fmt.Sprintf(diskIDByPathTemplate, attachment.IPv4, attachment.Port, attachment.IQN),
+		Device: mountDevice,
 	}
 }
 
