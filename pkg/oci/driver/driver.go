@@ -79,17 +79,21 @@ func (d OCIFlexvolumeDriver) Attach(opts flexvolume.Options, nodeName string) fl
 
 	log.Printf("Attaching volume %s -> instance %s", volumeOCID, instance.ID)
 
-	attachment, err := c.AttachVolume("iscsi", instance.ID, volumeOCID, nil)
+	var attachment *baremetal.VolumeAttachment
+	attachment, err = c.AttachVolume("iscsi", instance.ID, volumeOCID, nil)
 	if err != nil {
-		if err, ok := err.(*baremetal.Error); ok {
+		if apiErr, ok := err.(*baremetal.Error); ok {
+			if apiErr.Status != "409" {
+				log.Printf("AttachVolume: %+v", apiErr)
+				return flexvolume.Fail(apiErr)
+			}
 			// If we get a 409 conflict response when attaching we
-			// presume that the device is already attached and
-			// succeed.
-			if err.Status != "409" {
-				log.Printf("AttachVolume: %+v", err)
+			// presume that the device is already attached.
+			log.Printf("Attach(): Volume %q already attached.", volumeOCID)
+			attachment, err = c.FindVolumeAttachment(volumeOCID)
+			if err != nil {
 				return flexvolume.Fail(err)
 			}
-			log.Printf("Attach(): Volume %q already attached.", volumeOCID)
 		}
 	}
 
