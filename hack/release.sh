@@ -7,8 +7,8 @@ USERNAME=oracle
 REPO=oci-flexvolume-driver
 
 if ! [ -x "$(command -v github-release)" ]; then
-  echo "Error: github-release is not installed. Aborting"
-  exit 1
+    echo "Error: github-release is not installed. Aborting"
+    exit 1
 fi
 
 if git rev-parse "$RELEASE" >/dev/null 2>&1; then
@@ -19,16 +19,16 @@ else
     git push --tags
 
     github-release release \
-    --user $USERNAME \
-    --repo $REPO \
-    --tag $RELEASE \
-    --name "$RELEASE" \
-    --description "Release version $RELEASE of the OCI Flexvolume driver"
+        --user $USERNAME \
+        --repo $REPO \
+        --tag $RELEASE \
+        --name "$RELEASE" \
+        --description "Release version $RELEASE of the OCI Flexvolume driver"
 
     github-release upload \
-    --user $USERNAME \
-    --repo $REPO \
-    --tag $RELEASE \
-    --name "oci" \
-    --file dist/oci
+        --user $USERNAME \
+        --repo $REPO \
+        --tag $RELEASE \
+        --name "oci" \
+        --file dist/oci
 fi
