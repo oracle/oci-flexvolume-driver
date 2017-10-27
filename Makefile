@@ -55,3 +55,7 @@ build-integration-tests:
 	    -i \
 	    -o ${BIN_DIR}/integration-tests \
 	    ./test/integration
+
+.PHONY: release
+release:
+	hack/release.sh
