@@ -1,5 +1,5 @@
 ---
-oci_flexvolume_driver_mode: minion
+oci_flexvolume_driver_mode: worker
 oci_flexvolume_driver_root: /usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci
 oci_flexvolume_driver_config_path: "{{ oci_flexvolume_driver_root }}/config.yaml"
 oci_flexvolume_driver_bin_name: oci

@@ -1,5 +1,5 @@
 ---
-- hosts: kubemasters
+- hosts: masters
   roles:
     - role: oci-flexvolume-driver
       oci_user: "{{ lookup('ini', 'user section={{ oci_local_config_section }} file={{ oci_local_config }}') }}"
@@ -15,14 +15,10 @@
         name: docker
         state: restarted
 
-- hosts: kubeslaves
+- hosts: workers
   become: true
   roles:
     - role: oci-flexvolume-driver
-      oci_user: "{{ lookup('ini', 'user section={{ oci_local_config_section }} file={{ oci_local_config }}') }}"
-      oci_fingerprint: "{{ lookup('ini', 'fingerprint section={{ oci_local_config_section }} file={{ oci_local_config }}') }}"
-      oci_tenancy: "{{ lookup('ini', 'tenancy section={{ oci_local_config_section }} file={{ oci_local_config }}') }}"
-      oci_key_file: "{{ lookup('ini', 'key_file section={{ oci_local_config_section }} file={{ oci_local_config }}') }}"
   tasks:
     - name: restart kublet
       service:
