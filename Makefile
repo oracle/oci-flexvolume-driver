@@ -58,4 +58,4 @@ build-integration-tests:
 
 .PHONY: release
 release:
-	hack/release.sh
+	@hack/release.sh
