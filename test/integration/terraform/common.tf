@@ -12,7 +12,7 @@ variable "private_key_path" {
   default = "_tmp/oci_api_key.pem"
 }
 variable "compartment_ocid" {
-  default = "ocid1.compartment.oc1..aaaaaaaa3um2atybwhder4qttfhgon4j3hcxgmsvnyvx4flfjyewkkwfzwnq"
+  default = "ocid1.compartment.oc1..aaaaaaaa6yrzvtwcumheirxtmbrbrya5lqkr7k7lxi34q3egeseqwlq2l5aq"
 }
 variable "availability_domain" {
   default = "NWuj:PHX-AD-2"
