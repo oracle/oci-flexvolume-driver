@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import argparse
+import atexit
 import datetime
 import json
 import os
@@ -23,6 +24,7 @@ import select
 import subprocess
 import sys
 import time
+import uuid
 
 TMP_OCI_API_KEY = "/tmp/oci_api_key.pem"
 TMP_INSTANCE_KEY = "/tmp/instance_key"
@@ -30,6 +32,8 @@ DEBUG_FILE = "runner.log"
 DRIVER_DIR = "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci"
 TERRAFORM_DIR = "terraform"
 TIMEOUT = 120
+LOCKFILE = "/tmp/system-test-lock-file"
+MAX_NUM_LOCKFILE_RETRIES = 100
 
 def _check_env():
     if "OCI_API_KEY" not in os.environ and "OCI_API_KEY_VAR" not in os.environ:
@@ -56,6 +60,42 @@ def _create_key_files():
     if "INSTANCE_KEY_VAR" in os.environ:
         _run_command("echo \"$INSTANCE_KEY_VAR\" | openssl enc -base64 -d -A > " + TMP_INSTANCE_KEY, ".")
         _run_command("chmod 600 " + TMP_INSTANCE_KEY, ".")
+
+
+def _read_lock_file(instance_ip):
+    stdout, _, returncode = _run_command(_ssh(instance_ip, "cat " + LOCKFILE), ".")
+    if returncode == 0:
+        return stdout.strip()
+    return None
+
+
+def _write_lock_file(instance_ip, test_uuid):
+    _log("Creating lockfile: " + LOCKFILE)
+    _, _, returncode = _run_command(_ssh(instance_ip, "echo " + test_uuid + " > " + LOCKFILE), ".")
+    return returncode == 0
+
+
+def _delete_lock_file(instance_ip):
+    _log("Deleting lockfile: " + LOCKFILE)
+    _, _, returncode = _run_command(_ssh(instance_ip, "rm -rf " + LOCKFILE), ".")
+    return returncode == 0
+
+
+def _wait_for_cluster(instance_ip):
+    test_uuid = str(uuid.uuid4())
+    i = 0
+    while i < MAX_NUM_LOCKFILE_RETRIES:
+        content = _read_lock_file(instance_ip)
+        if content is None:
+            if not _write_lock_file(instance_ip, test_uuid):
+                _log("Error. Failed to write lockfile: " + LOCKFILE)
+                sys.exit(1)
+            content = _read_lock_file(instance_ip)
+            if content == test_uuid:
+                return
+        time.sleep(30)
+    _log("Error. Timedout waiting for the cluster to become available")
+    sys.exit(1)
 
 
 def _destroy_key_files():
@@ -267,10 +307,9 @@ def _main():
     args = vars(parser.parse_args())
 
     _check_env()
-    _create_key_files()
 
-    terraform_env = _get_terraform_env()
-    success = True
+    _create_key_files()
+    atexit.register(_destroy_key_files)
 
     _log("Finding the cluster IPs", as_banner=True)
     (master_ip, slave_ips) = _get_cluster_ips()
@@ -278,10 +317,25 @@ def _main():
     for slave_ip in slave_ips:
         _log("Slave IP: " + slave_ip)
 
+    _log("Waiting for the cluster to be available", as_banner=True)
+    _wait_for_cluster(master_ip)
+    def _delete_lock_file_atexit():
+        if not _delete_lock_file(master_ip):
+            _log("Error. Failed to delete lockfile: " + LOCKFILE)
+            sys.exit(1)
+    atexit.register(_delete_lock_file_atexit)
+
+    terraform_env = _get_terraform_env()
+
     if not args['no_create']:
         _log("Creating test volume", as_banner=True)
         _terraform("init", TERRAFORM_DIR, terraform_env)
         _terraform("apply", TERRAFORM_DIR, terraform_env)
+    if not args['no_destroy']:
+        def _destroy_test_volume_atexit():
+            _log("Destroying test volume", as_banner=True)
+            _terraform("destroy -force", TERRAFORM_DIR, terraform_env)
+        atexit.register(_destroy_test_volume_atexit)
 
     _log("Finding the volume name", as_banner=True)
     volume_name = _get_volume_name(terraform_env)
@@ -355,15 +409,6 @@ def _main():
 
         _log("Adding the origional node back into the cluster.")
         _run_command(_ssh(master_ip, "kubectl uncordon " + node1), ".")
-
-    if not args['no_destroy']:
-        _log("Destroying test volume", as_banner=True)
-        _terraform("destroy -force", TERRAFORM_DIR, terraform_env)
-
-    _destroy_key_files()
-
-    if not success:
-        sys.exit(1)
 
 
 if __name__ == "__main__":
