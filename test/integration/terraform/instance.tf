@@ -20,7 +20,7 @@ data "oci_core_images" "os_image_ocid" {
 resource "oci_core_instance" "instance" {
   availability_domain = "${var.availability_domain}"
   compartment_id = "${var.compartment_ocid}"
-  display_name = "${var.flexvolume_test_id}"
+  display_name = "${var.test_id}"
   image = "${lookup(data.oci_core_images.os_image_ocid.images[0], "id")}"
   shape = "VM.Standard1.1"
   subnet_id =  "${var.subnet_ocid}"
@@ -43,6 +43,13 @@ data "oci_core_vnic" "instance_vnic" {
   vnic_id = "${lookup(data.oci_core_vnic_attachments.instance_vnics.vnic_attachments[0], "vnic_id")}"
 }
 
+data "template_file" "driver_config" {
+  template = "${file("${path.module}/config.yaml.tpl")}"
+  vars {
+      key = "${ indent(4, file("${path.module}/_tmp/oci_api_key.pem")) }"
+  }
+}
+
 resource null_resource "instance" {
   depends_on = [
     "data.oci_core_vnic.instance_vnic",
@@ -59,22 +66,17 @@ resource null_resource "instance" {
     private_key = "${var.ssh_private_key}"
   }
 
-  provisioner "file" {
-    source      = "flexvolume_driver.json",
-    destination = "/tmp/flexvolume_driver.json",
+  provisioner "file" "test_binary" {
+    source      = "../../../dist/bin/integration-tests"
+    destination = "/tmp/integration-tests"
   }
 
-  provisioner "file" {
-    source      = "_tmp/oci_api_key.pem",
-    destination = "/tmp/oci_api_key.pem",
+  provisioner "file" "driver_config" {
+    content = "${data.template_file.driver_config.rendered}"
+    destination = "/tmp/config.yaml"
   }
 
-  provisioner "file" {
-    source      = "../../../dist/bin/integration-tests",
-    destination = "/tmp/integration-tests",
-  }
-
-  provisioner "remote-exec" {
+  provisioner "remote-exec" "run_tests" {
     inline = [
       "chmod +x /tmp/integration-tests",
     ]

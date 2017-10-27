@@ -74,11 +74,11 @@ func New(configPath string) (Interface, error) {
 	}
 
 	baseClient, err := baremetal.NewClient(
-		config.UserID,
-		config.TenancyID,
-		config.Fingerprint,
-		baremetal.PrivateKeyFilePath(config.PrivateKeyFile),
-		baremetal.Region(config.Region))
+		config.Auth.UserOCID,
+		config.Auth.TenancyOCID,
+		config.Auth.Fingerprint,
+		baremetal.PrivateKeyBytes([]byte(config.Auth.PrivateKey)),
+		baremetal.Region(config.Auth.Region))
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +114,7 @@ func (c *client) FindVolumeAttachment(vID string) (*baremetal.VolumeAttachment, 
 	opts := &baremetal.ListVolumeAttachmentsOptions{VolumeID: vID}
 
 	for {
-		r, err := c.ListVolumeAttachments(c.config.CompartmentID, opts)
+		r, err := c.ListVolumeAttachments(c.config.Auth.CompartmentOCID, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -146,7 +146,7 @@ func (c *client) findInstanceByNodeNameIsVnic(nodeName string) (*baremetal.Insta
 	var running []baremetal.Instance
 	opts := &baremetal.ListVnicAttachmentsOptions{}
 	for {
-		vnicAttachments, err := c.ListVnicAttachments(c.config.CompartmentID, opts)
+		vnicAttachments, err := c.ListVnicAttachments(c.config.Auth.CompartmentOCID, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -191,7 +191,7 @@ func (c *client) findInstanceByNodeNameIsDisplayName(nodeName string) (*baremeta
 
 	var running []baremetal.Instance
 	for {
-		r, err := c.ListInstances(c.config.CompartmentID, opts)
+		r, err := c.ListInstances(c.config.Auth.CompartmentOCID, opts)
 		if err != nil {
 			return nil, err
 		}

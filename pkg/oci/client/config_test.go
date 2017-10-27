@@ -16,7 +16,6 @@ package client
 
 import (
 	"reflect"
-	"strings"
 	"testing"
 
 	"k8s.io/apimachinery/pkg/util/validation/field"
@@ -24,23 +23,14 @@ import (
 	"github.com/oracle/oci-flexvolume-driver/pkg/oci/instancemeta"
 )
 
-const completeConfigString = `{
-  "region": "us-phoenix-1",
-  "tenancy_ocid": "ocid1.tenancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-  "compartment_ocid": "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-  "user_ocid": "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-  "key_file": "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci/flexvolume_driver.pem",
-  "fingerprint": "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e"
-}`
-
 func TestConfigDefaulting(t *testing.T) {
-	expectedCompartmentID := "ocid1.compartment.oc1..aaaaaaaa3um2atybwhder4qttfhgon4j3hcxgmsvnyvx4flfjyewkkwfzwnq"
+	expectedCompartmentOCID := "ocid1.compartment.oc1..aaaaaaaa3um2atybwhder4qttfhgon4j3hcxgmsvnyvx4flfjyewkkwfzwnq"
 	expectedRegion := "us-phoenix-1"
 	expectedRegionKey := "phx"
 
 	cfg := &Config{metadata: instancemeta.NewMock(
 		&instancemeta.InstanceMetadata{
-			CompartmentOCID: expectedCompartmentID,
+			CompartmentOCID: expectedCompartmentOCID,
 			Region:          expectedRegionKey, // instance metadata API only returns the region key
 		},
 	)}
@@ -50,23 +40,15 @@ func TestConfigDefaulting(t *testing.T) {
 		t.Fatalf("cfg.setDefaults() => %v, expected no error", err)
 	}
 
-	if cfg.Region != expectedRegion {
-		t.Fatalf("Expected cfg.Region = %q, got %q", cfg.Region, expectedRegion)
+	if cfg.Auth.Region != expectedRegion {
+		t.Fatalf("Expected cfg.Region = %q, got %q", cfg.Auth.Region, expectedRegion)
 	}
-	if cfg.RegionKey != expectedRegionKey {
-		t.Fatalf("Expected cfg.RegionKey = %q, got %q", cfg.RegionKey, expectedRegionKey)
+	if cfg.Auth.RegionKey != expectedRegionKey {
+		t.Fatalf("Expected cfg.RegionKey = %q, got %q", cfg.Auth.RegionKey, expectedRegionKey)
 	}
 
-	if cfg.CompartmentID != expectedCompartmentID {
-		t.Fatalf("Expected cfg.CompartmentID = %q, got %q", cfg.CompartmentID, expectedCompartmentID)
-	}
-}
-
-func TestUnmarshalConfig(t *testing.T) {
-	r := strings.NewReader(completeConfigString)
-	_, err := unmarshalConfig(r)
-	if err != nil {
-		t.Fatalf("Unexpected error unmarshaling config: %v", err)
+	if cfg.Auth.CompartmentOCID != expectedCompartmentOCID {
+		t.Fatalf("Expected cfg.CompartmentOCID = %q, got %q", cfg.Auth.CompartmentOCID, expectedCompartmentOCID)
 	}
 }
 
@@ -107,11 +89,11 @@ func TestConfigSetRegion(t *testing.T) {
 				}
 			}
 
-			if cfg.Region != tt.region {
-				t.Errorf("SetRegionFields(%q) => {Region: %q}; want {Region: %q}", tt.in, cfg.Region, tt.region)
+			if cfg.Auth.Region != tt.region {
+				t.Errorf("SetRegionFields(%q) => {Region: %q}; want {Region: %q}", tt.in, cfg.Auth.Region, tt.region)
 			}
-			if cfg.RegionKey != tt.shortRegion {
-				t.Errorf("SetRegionFields(%q) => {RegionShortName: %q}; want {RegionShortName: %q}", tt.in, cfg.RegionKey, tt.shortRegion)
+			if cfg.Auth.RegionKey != tt.shortRegion {
+				t.Errorf("SetRegionFields(%q) => {RegionShortName: %q}; want {RegionShortName: %q}", tt.in, cfg.Auth.RegionKey, tt.shortRegion)
 			}
 		})
 	}
@@ -126,24 +108,28 @@ func TestValidateConfig(t *testing.T) {
 		{
 			name: "valid",
 			in: &Config{
-				Region:         "us-phoenix-1",
-				RegionKey:      "phx",
-				CompartmentID:  "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-				TenancyID:      "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-				UserID:         "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-				PrivateKeyFile: "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci/flexvolume_driver.pem",
-				Fingerprint:    "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
+				Auth: AuthConfig{
+					Region:          "us-phoenix-1",
+					RegionKey:       "phx",
+					CompartmentOCID: "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					TenancyOCID:     "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					UserOCID:        "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					PrivateKey:      "-----BEGIN RSA PRIVATE KEY----- (etc)",
+					Fingerprint:     "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
+				},
 			},
 			errs: field.ErrorList{},
 		}, {
 			name: "missing_region",
 			in: &Config{
-				RegionKey:      "phx",
-				CompartmentID:  "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-				TenancyID:      "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-				UserID:         "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-				PrivateKeyFile: "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci/flexvolume_driver.pem",
-				Fingerprint:    "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
+				Auth: AuthConfig{
+					RegionKey:       "phx",
+					CompartmentOCID: "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					TenancyOCID:     "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					UserOCID:        "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					PrivateKey:      "-----BEGIN RSA PRIVATE KEY----- (etc)",
+					Fingerprint:     "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
+				},
 			},
 			errs: field.ErrorList{
 				&field.Error{Type: field.ErrorTypeRequired, Field: "region", BadValue: ""},
@@ -151,12 +137,14 @@ func TestValidateConfig(t *testing.T) {
 		}, {
 			name: "missing_region_key",
 			in: &Config{
-				Region:         "us-phoenix-1",
-				CompartmentID:  "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-				TenancyID:      "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-				UserID:         "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-				PrivateKeyFile: "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci/flexvolume_driver.pem",
-				Fingerprint:    "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
+				Auth: AuthConfig{
+					Region:          "us-phoenix-1",
+					CompartmentOCID: "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					TenancyOCID:     "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					UserOCID:        "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					PrivateKey:      "-----BEGIN RSA PRIVATE KEY----- (etc)",
+					Fingerprint:     "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
+				},
 			},
 			errs: field.ErrorList{
 				&field.Error{Type: field.ErrorTypeRequired, Field: "region_key", BadValue: ""},
@@ -164,64 +152,74 @@ func TestValidateConfig(t *testing.T) {
 		}, {
 			name: "missing_tenancy_ocid",
 			in: &Config{
-				Region:         "us-phoenix-1",
-				RegionKey:      "phx",
-				CompartmentID:  "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-				UserID:         "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-				PrivateKeyFile: "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci/flexvolume_driver.pem",
-				Fingerprint:    "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
+				Auth: AuthConfig{
+					Region:          "us-phoenix-1",
+					RegionKey:       "phx",
+					CompartmentOCID: "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					UserOCID:        "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					PrivateKey:      "-----BEGIN RSA PRIVATE KEY----- (etc)",
+					Fingerprint:     "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
+				},
 			},
 			errs: field.ErrorList{
-				&field.Error{Type: field.ErrorTypeRequired, Field: "tenancy_ocid", BadValue: ""},
+				&field.Error{Type: field.ErrorTypeRequired, Field: "tenancy", BadValue: ""},
 			},
 		}, {
 			name: "missing_compartment_ocid",
 			in: &Config{
-				Region:         "us-phoenix-1",
-				RegionKey:      "phx",
-				TenancyID:      "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-				UserID:         "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-				PrivateKeyFile: "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci/flexvolume_driver.pem",
-				Fingerprint:    "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
+				Auth: AuthConfig{
+					Region:      "us-phoenix-1",
+					RegionKey:   "phx",
+					TenancyOCID: "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					UserOCID:    "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					PrivateKey:  "-----BEGIN RSA PRIVATE KEY----- (etc)",
+					Fingerprint: "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
+				},
 			},
 			errs: field.ErrorList{
-				&field.Error{Type: field.ErrorTypeRequired, Field: "compartment_ocid", BadValue: ""},
+				&field.Error{Type: field.ErrorTypeRequired, Field: "compartment", BadValue: ""},
 			},
 		}, {
 			name: "missing_user_ocid",
 			in: &Config{
-				Region:         "us-phoenix-1",
-				RegionKey:      "phx",
-				CompartmentID:  "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-				TenancyID:      "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-				PrivateKeyFile: "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci/flexvolume_driver.pem",
-				Fingerprint:    "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
+				Auth: AuthConfig{
+					Region:          "us-phoenix-1",
+					RegionKey:       "phx",
+					CompartmentOCID: "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					TenancyOCID:     "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					PrivateKey:      "-----BEGIN RSA PRIVATE KEY----- (etc)",
+					Fingerprint:     "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
+				},
 			},
 			errs: field.ErrorList{
-				&field.Error{Type: field.ErrorTypeRequired, Field: "user_ocid", BadValue: ""},
+				&field.Error{Type: field.ErrorTypeRequired, Field: "user", BadValue: ""},
 			},
 		}, {
 			name: "missing_key_file",
 			in: &Config{
-				Region:        "us-phoenix-1",
-				RegionKey:     "phx",
-				CompartmentID: "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-				TenancyID:     "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-				UserID:        "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-				Fingerprint:   "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
+				Auth: AuthConfig{
+					Region:          "us-phoenix-1",
+					RegionKey:       "phx",
+					CompartmentOCID: "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					TenancyOCID:     "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					UserOCID:        "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					Fingerprint:     "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
+				},
 			},
 			errs: field.ErrorList{
-				&field.Error{Type: field.ErrorTypeRequired, Field: "key_file", BadValue: ""},
+				&field.Error{Type: field.ErrorTypeRequired, Field: "key", BadValue: ""},
 			},
 		}, {
 			name: "missing_figerprint",
 			in: &Config{
-				Region:         "us-phoenix-1",
-				RegionKey:      "phx",
-				CompartmentID:  "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-				TenancyID:      "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-				UserID:         "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-				PrivateKeyFile: "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci/flexvolume_driver.pem",
+				Auth: AuthConfig{
+					Region:          "us-phoenix-1",
+					RegionKey:       "phx",
+					CompartmentOCID: "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					TenancyOCID:     "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					UserOCID:        "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					PrivateKey:      "-----BEGIN RSA PRIVATE KEY----- (etc)",
+				},
 			},
 			errs: field.ErrorList{
 				&field.Error{Type: field.ErrorTypeRequired, Field: "fingerprint", BadValue: ""},

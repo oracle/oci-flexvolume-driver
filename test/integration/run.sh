@@ -112,8 +112,7 @@ chmod 600 _tmp/oci_api_key.pem
 export TF_VAR_ssh_public_key="$(cat _tmp/instance_key.pub)"
 export TF_VAR_ssh_private_key="$(cat _tmp/instance_key)"
 
-export TF_VAR_flexvolume_test_id="flexvolume-driver-integration-$(date '+%Y-%m-%d-%H-%M')"
-echo "Test ID: ${TF_VAR_flexvolume_test_id}"
+export TF_VAR_test_id="flexvolume-driver-integration-$(date '+%Y-%m-%d-%H-%M')"
 
 # Provision OCI instance and block storage volume for test.
 terraform init .
@@ -129,10 +128,7 @@ function _trap_2 {
 trap _trap_2 EXIT
 
 INSTANCE_IP=$(terraform output instance_public_ip)
-echo "Instance IP: ${INSTANCE_IP}"
-
 VOLUME_NAME=$(terraform output volume_ocid | cut -d'.' -f5)
-echo "Volume name: ${VOLUME_NAME}"
 
 # Run tests on provisioned instance.
 ssh \

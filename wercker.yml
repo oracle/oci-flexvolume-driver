@@ -40,6 +40,7 @@ build:
         mkdir -p ${WERCKER_OUTPUT_DIR}/test
         cp -R test/integration ${WERCKER_OUTPUT_DIR}/test/
         cp -R test/system ${WERCKER_OUTPUT_DIR}/test/
+        cp -R ansible ${WERCKER_OUTPUT_DIR}/
 
 integration-test:
   box:
@@ -50,7 +51,9 @@ integration-test:
   steps:
     - script:
         name: integration test
-        code: ./test/integration/run.sh
+        code: |
+          cd ./test/integration/
+          ./run.sh
 
 system-test:
   box:

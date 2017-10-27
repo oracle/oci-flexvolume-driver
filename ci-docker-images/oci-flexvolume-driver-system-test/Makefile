@@ -15,13 +15,17 @@
 DOCKER_REPO ?= wcr.io
 DOCKER_USER ?= oracle
 DOCKER_IMAGE_NAME ?= oci-flexvolume-driver-system-test
-DOCKER_IMAGE_TAG ?= 1.0.0
+VERSION ?= 1.0.0
+IMAGE ?= ${DOCKER_REPO}/${DOCKER_USER}/${DOCKER_IMAGE_NAME}
 
 .PHONY: build
 build:
-	docker build --build-arg PROXY=${http_proxy} -t ${DOCKER_REPO}/${DOCKER_USER}/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG} .
+	docker build \
+	    --build-arg http_proxy=${http_proxy} \
+	    --build-arg https_proxy=${https_proxy} \
+	    -t ${IMAGE}:${VERSION} .
 
 .PHONY: push
 push: build
 	docker login -u '$(DOCKER_REGISTRY_USERNAME)' -p '$(DOCKER_REGISTRY_PASSWORD)' $(DOCKER_REPO)
-	docker push ${DOCKER_REPO}/${DOCKER_USER}/${DOCKER_IMAGE_NAME}:${DOCKER_IMAGE_TAG}
+	docker push ${IMAGE}:${VERSION}

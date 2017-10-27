@@ -32,3 +32,7 @@
 [[constraint]]
   branch = "master"
   name = "k8s.io/apimachinery"
+
+[[constraint]]
+  branch = "v2"
+  name = "gopkg.in/yaml.v2"

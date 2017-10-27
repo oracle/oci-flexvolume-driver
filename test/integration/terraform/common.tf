@@ -21,7 +21,7 @@ variable "region" {
   default = "us-phoenix-1"
 }
 
-variable "flexvolume_test_id" {}
+variable "test_id" {}
 
 provider "oci" {
   tenancy_ocid = "${var.tenancy_ocid}"
@@ -29,4 +29,16 @@ provider "oci" {
   fingerprint = "${var.fingerprint}"
   private_key_path = "${var.private_key_path}"
   region = "${var.region}"
+}
+
+provider "null" {
+  version = "~> 1.0"
+}
+
+provider "template" {
+  version = "~> 1.0"
+}
+
+output "test_id" {
+  value = "${var.test_id}"
 }
