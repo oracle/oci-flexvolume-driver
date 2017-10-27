@@ -6,6 +6,7 @@
       oci_fingerprint: "{{ lookup('ini', 'fingerprint section={{ oci_local_config_section }} file={{ oci_local_config }}') }}"
       oci_tenancy: "{{ lookup('ini', 'tenancy section={{ oci_local_config_section }} file={{ oci_local_config }}') }}"
       oci_key_file: "{{ lookup('ini', 'key_file section={{ oci_local_config_section }} file={{ oci_local_config }}') }}"
+      oci_flexvolume_driver_mode: master
       become: true
   tasks:
     - name: restart controller

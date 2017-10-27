@@ -7,6 +7,7 @@
       oci_tenancy: ocid1.tenancy.oc1..aaaaaaaatyn7scrtwtqedvgrxgr2xunzeo6uanvyhzxqblctwkrpisvke4kq
       # see TMP_OCI_API_KEY in runner.py
       oci_key_file: "/tmp/oci_api_key.pem"
+      oci_flexvolume_driver_mode: master
       become: true
   tasks:
     - name: restart controller
