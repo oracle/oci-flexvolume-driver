@@ -67,3 +67,16 @@ system-test:
         code: |
           cd test/system
           ./runner.py
+
+release:
+  steps:
+    - github-create-release:
+      token: $GITHUB_TOKEN
+      tag: $GITHUB_RELEASE_VERSION
+      title: Application $GITHUB_RELEASE_VERSION
+      draft: false
+
+    - github-upload-asset:
+      token: $GITHUB_TOKEN
+      file: $WERCKER_OUTPUT_DIR/oci
+      filename: oci
