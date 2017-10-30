@@ -7,6 +7,7 @@
       oci_tenancy: ocid1.tenancy.oc1..aaaaaaaatyn7scrtwtqedvgrxgr2xunzeo6uanvyhzxqblctwkrpisvke4kq
       # see TMP_OCI_API_KEY in runner.py
       oci_key_file: "/tmp/oci_api_key.pem"
+      oci_flexvolume_driver_mode: master
       become: true
   tasks:
     - name: restart controller
@@ -15,15 +16,10 @@
         name: docker
         state: restarted
 
-- hosts: slaves
+- hosts: workers
   become: true
   roles:
     - role: ../../ansible/roles/oci-flexvolume-driver
-      oci_user: ocid1.user.oc1..aaaaaaaao235lbcxvdrrqlrpwv4qvil2xzs4544h3lof4go3wz2ett6arpeq
-      oci_fingerprint: 4d:f5:ff:0e:a9:10:e8:5a:d3:52:6a:f8:1e:99:a3:47
-      oci_tenancy: ocid1.tenancy.oc1..aaaaaaaatyn7scrtwtqedvgrxgr2xunzeo6uanvyhzxqblctwkrpisvke4kq
-      # see TMP_OCI_API_KEY in runner.py
-      oci_key_file: "/tmp/oci_api_key.pem"
   tasks:
     - name: restart kublet
       service:

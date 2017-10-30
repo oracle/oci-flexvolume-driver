@@ -1,6 +1,7 @@
 # Install
 
-We publish the flexvolume driver as a single binary that needs to be installed on every node in your Kubernetes cluster.
+We publish the OCI flexvolume driver as a single binary that needs to be
+installed on every node in your Kubernetes cluster.
 
 ## Ansible
 
@@ -31,16 +32,17 @@ Add the details for all the masters and nodes in your cluster
 [all:vars]
 ansible_ssh_user=ubuntu
 
-[kubemasters]
+[masters]
 master ansible_ssh_host=...
 
-[kubeslaves]
-slave1 ansible_ssh_host=...
+[workers]
+worker1 ansible_ssh_host=...
 ```
 
 #### Run the playbook.
 
-*If you're using Ubuntu 16.04 you might need to use python3 as in the example below.*
+*If you're using Ubuntu 16.04 you might need to use python3 as in the example
+below.*
 
 ```
 ansible-playbook -i hosts \
@@ -64,8 +66,8 @@ The driver requires API credentials for a OCI account with the ability
 to attach and detach [OCI block storage volumes][1] from to/from the appropriate
 nodes in the cluster.
 
-These credentials should be provided via a YAML file present on _all_ nodes in
-the cluster at `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci/config.yaml`
+These credentials should be provided via a YAML file present on **master** nodes
+in the cluster at `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci/config.yaml`
 in the following format:
 
 ```yaml

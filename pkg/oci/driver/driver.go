@@ -54,9 +54,14 @@ func GetConfigPath() string {
 // Init checks that we have the appropriate credentials and metadata API access
 // on driver initialisation.
 func (d OCIFlexvolumeDriver) Init() flexvolume.DriverStatus {
-	_, err := client.New(GetConfigPath())
-	if err != nil {
-		return flexvolume.Fail(err)
+	path := GetConfigPath()
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		_, err = client.New(path)
+		if err != nil {
+			return flexvolume.Fail(err)
+		}
+	} else {
+		log.Printf("Config file %q does not exist. Assuming worker node.", path)
 	}
 
 	return flexvolume.Succeed()
@@ -79,21 +84,34 @@ func (d OCIFlexvolumeDriver) Attach(opts flexvolume.Options, nodeName string) fl
 
 	log.Printf("Attaching volume %s -> instance %s", volumeOCID, instance.ID)
 
-	// If we get a 409 conflict response when attaching we presume that the
-	// device is already attached and succeed.
-	if _, err = c.AttachVolume("iscsi", instance.ID, volumeOCID, nil); err != nil {
-		if err, ok := err.(*baremetal.Error); ok {
-			if err.Status != "409" {
-				log.Printf("AttachVolume: %+v", err)
+	var attachment *baremetal.VolumeAttachment
+	attachment, err = c.AttachVolume("iscsi", instance.ID, volumeOCID, nil)
+	if err != nil {
+		if apiErr, ok := err.(*baremetal.Error); ok {
+			if apiErr.Status != "409" {
+				log.Printf("AttachVolume: %+v", apiErr)
+				return flexvolume.Fail(apiErr)
+			}
+			// If we get a 409 conflict response when attaching we
+			// presume that the device is already attached.
+			log.Printf("Attach(): Volume %q already attached.", volumeOCID)
+			attachment, err = c.FindVolumeAttachment(volumeOCID)
+			if err != nil {
 				return flexvolume.Fail(err)
 			}
-			log.Printf("Attach(): Volume %q already attached.", volumeOCID)
 		}
 	}
 
+	attachment, err = c.WaitForVolumeAttached(attachment.ID)
+	if err != nil {
+		return flexvolume.Fail(err)
+	}
+
+	log.Printf("attach: %s attached", attachment.ID)
+
 	return flexvolume.DriverStatus{
 		Status: flexvolume.StatusSuccess,
-		Device: "undefined",
+		Device: fmt.Sprintf(diskIDByPathTemplate, attachment.IPv4, attachment.Port, attachment.IQN),
 	}
 }
 
@@ -120,34 +138,17 @@ func (d OCIFlexvolumeDriver) Detach(pvOrVolumeName, nodeName string) flexvolume.
 
 // WaitForAttach searches for the the volume attachment created by Attach() and
 // waits for its life cycle state to reach ATTACHED.
-func (d OCIFlexvolumeDriver) WaitForAttach(_ string, opts flexvolume.Options) flexvolume.DriverStatus {
-	c, err := client.New(GetConfigPath())
-	if err != nil {
-		return flexvolume.Fail(err)
-	}
-
-	volumeOCID := fmt.Sprintf(volumeOCIDTemplate, c.GetConfig().Auth.RegionKey, opts["kubernetes.io/pvOrVolumeName"])
-	attachment, err := c.FindVolumeAttachment(volumeOCID)
-	if err != nil {
-		return flexvolume.Fail(err)
-	}
-
-	log.Printf("attach: found volume attachment %s", attachment.ID)
-
-	attachment, err = c.WaitForVolumeAttached(attachment.ID)
-	if err != nil {
-		return flexvolume.Fail(err)
-	}
-
-	log.Printf("attach: %s attached", attachment.ID)
-
+func (d OCIFlexvolumeDriver) WaitForAttach(mountDevice string, _ flexvolume.Options) flexvolume.DriverStatus {
 	return flexvolume.DriverStatus{
 		Status: flexvolume.StatusSuccess,
-		Device: fmt.Sprintf(diskIDByPathTemplate, attachment.IPv4, attachment.Port, attachment.IQN),
+		Device: mountDevice,
 	}
 }
 
 // IsAttached checks whether the volume is attached to the host.
+// TODO(apryde): The documentation states that this is called from the Kubelet
+// and KCM. Implementation requries credentials which won't be present on nodes
+// but I've only ever seen it called by the KCM.
 func (d OCIFlexvolumeDriver) IsAttached(opts flexvolume.Options, nodeName string) flexvolume.DriverStatus {
 	c, err := client.New(GetConfigPath())
 	if err != nil {

@@ -296,22 +296,22 @@ def _create_rc_yaml(volume_name):
     return "replication-controller.yaml"
 
 
-def _ansible_inventory(master, slaves):
+def _ansible_inventory(master, workers):
     contents = (
         "[masters]\n"
         "{master_ip} ansible_user=opc\n"
         "\n"
-        "[slaves]\n").format(master_ip=master)
-    for slave in slaves:
-        contents += "{ip} ansible_user=opc\n".format(ip=slave)
+        "[workers]\n").format(master_ip=master)
+    for worker in workers:
+        contents += "{ip} ansible_user=opc\n".format(ip=worker)
 
     return contents
 
 
 def _install_driver():
-    master, slaves = _get_cluster_ips()
+    master, workers = _get_cluster_ips()
     with open("ansible_inventory", "w") as inventory:
-        inventory.write(_ansible_inventory(master, slaves))
+        inventory.write(_ansible_inventory(master, workers))
 
     _run_command("ansible-playbook " +
                  "-i ansible_inventory " +

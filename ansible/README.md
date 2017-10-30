@@ -15,11 +15,11 @@ your cluster (the oci-flexvolume-driver needs to be installed on all masters and
 [all:vars]
 ansible_ssh_user=ubuntu
 
-[kubemasters]
+[masters]
 master ansible_ssh_host=...
 
-[kubeslaves]
-slave1 ansible_ssh_host=...
+[workers]
+worker1 ansible_ssh_host=...
 ```
 
 #### Run the playbook.
@@ -28,6 +28,6 @@ slave1 ansible_ssh_host=...
 
 ```
 ansible-playbook -i hosts \
---private-key=generated/instances_id_rsa \
--e 'ansible_python_interpreter=/usr/bin/python3'
+    --private-key=generated/instances_id_rsa \
+    -e 'ansible_python_interpreter=/usr/bin/python3'
 ```

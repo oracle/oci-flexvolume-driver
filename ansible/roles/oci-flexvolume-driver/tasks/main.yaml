@@ -14,6 +14,7 @@
     owner: root
     group: root
     mode: 0066
+  when: oci_flexvolume_driver_mode == "master"
 
 - name: "copy driver binary"
   copy:
