@@ -126,7 +126,13 @@ def _get_application_id(applications_json):
 def _pipeline_exists(runs_json):
     for run in json.loads(runs_json):
         if run['pipeline']['name'] == CI_PIPELINE_NAME:
-            return True
+            if 'WERCKER_RUN_ID' in os.environ:
+                # We are running from within CI so we better check that the run found is not us!
+                if os.environ['WERCKER_RUN_ID'] != run['id']:
+                    return True
+            else:
+                # Not running from CI, so any running pipeline must be left alone to complete.
+                return True
     return False
 
 
@@ -201,6 +207,7 @@ def _log(string, as_banner=False, bold=False):
     _banner(as_banner, bold)
     print string
     _banner(as_banner, bold)
+    sys.stdout.flush()
 
 
 def _process_stream(stream, read_fds, global_buf, line_buf):
