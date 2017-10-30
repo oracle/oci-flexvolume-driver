@@ -54,15 +54,15 @@ func GetConfigPath() string {
 // Init checks that we have the appropriate credentials and metadata API access
 // on driver initialisation.
 func (d OCIFlexvolumeDriver) Init() flexvolume.DriverStatus {
-	/*
-	 * TODO(apryde): Can we differentiate between shell outs from the KCM
-	 * and the Kubelet? If so we should check config here, otherwise, we
-	 * can't.
-	 *_, err := client.New(GetConfigPath())
-	 *if err != nil {
-	 *        return flexvolume.Fail(err)
-	 *}
-	 */
+	path := GetConfigPath()
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		_, err = client.New(path)
+		if err != nil {
+			return flexvolume.Fail(err)
+		}
+	} else {
+		log.Printf("Config file %q does not exist. Assuming worker node.", path)
+	}
 
 	return flexvolume.Succeed()
 }
