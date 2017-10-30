@@ -24,6 +24,7 @@ import select
 import subprocess
 import sys
 import time
+import urllib2
 import uuid
 
 TMP_OCI_API_KEY = "/tmp/oci_api_key.pem"
@@ -34,6 +35,11 @@ TERRAFORM_DIR = "terraform"
 TIMEOUT = 120
 LOCKFILE = "/tmp/system-test-lock-file"
 MAX_NUM_LOCKFILE_RETRIES = 100
+CI_LOCKFILE_PREFIX = "CI"
+LOCAL_LOCKFILE_PREFIX = "LOCAL"
+CI_APPLICATION_NAME = "oci-flexvolume-driver"
+CI_BASE_URL = "https://app.wercker.com/api/v3"
+CI_PIPELINE_NAME = "system-test"
 
 
 def _check_env():
@@ -52,6 +58,9 @@ def _check_env():
         should_exit = True
     if "SLAVE1_IP" not in os.environ:
         _log("Error. Can't find SLAVE1_IP in the environment.")
+        should_exit = True
+    if "WERCKER_API_TOKEN" not in os.environ:
+        _log("Error. Can't find WERCKER_API_TOKEN in the environment.")
         should_exit = True
 
     if should_exit:
@@ -74,9 +83,20 @@ def _read_lock_file(instance_ip):
     return None
 
 
-def _write_lock_file(instance_ip, test_uuid):
+def _get_lockfile_content(test_uuid):
+    if 'WERCKER' in os.environ:
+        return CI_LOCKFILE_PREFIX + "-" + test_uuid
+    else:
+        return LOCAL_LOCKFILE_PREFIX + "-" + test_uuid
+
+
+def _started_from_ci(content):
+    return re.match(CI_LOCKFILE_PREFIX + "-.*", content)
+
+
+def _write_lock_file(instance_ip, content):
     _log("Creating lockfile: " + LOCKFILE)
-    _, _, returncode = _run_command(_ssh(instance_ip, "echo " + test_uuid + " > " + LOCKFILE), ".")
+    _, _, returncode = _run_command(_ssh(instance_ip, "echo " + content + " > " + LOCKFILE), ".")
     return returncode == 0
 
 
@@ -86,18 +106,59 @@ def _delete_lock_file(instance_ip):
     return returncode == 0
 
 
+def _get_url(url):
+    _log("Querying URL: " + url)
+    headers = {'Authorization': 'Bearer ' + os.environ['WERCKER_API_TOKEN'],
+               'Content-Type': 'application/json'}
+    request = urllib2.Request(url, None, headers)
+    response = urllib2.urlopen(request)
+    return response.read()
+
+
+def _get_application_id(applications_json):
+    for application in json.loads(applications_json):
+        if application['name'] == CI_APPLICATION_NAME:
+            return application['id']
+    _log("Error. Failed to find the CI application id for: " + CI_APPLICATION_NAME)
+    sys.exit(1)
+
+
+def _pipeline_exists(runs_json):
+    for run in json.loads(runs_json):
+        if run['pipeline']['name'] == CI_PIPELINE_NAME:
+            return True
+    return False
+
+
+def _instance_running_in_ci():
+    applications_json = _get_url(CI_BASE_URL + "/applications/oracle")
+    application_id = _get_application_id(applications_json)
+    runs_json = _get_url(CI_BASE_URL + "/runs?applicationId=" + application_id + "&status=running")
+    return _pipeline_exists(runs_json)
+
+
 def _wait_for_cluster(instance_ip):
     test_uuid = str(uuid.uuid4())
+    lockfile_content = _get_lockfile_content(test_uuid)
     i = 0
     while i < MAX_NUM_LOCKFILE_RETRIES:
         content = _read_lock_file(instance_ip)
         if content is None:
-            if not _write_lock_file(instance_ip, test_uuid):
+            # No lockfile found, so create one.
+            if not _write_lock_file(instance_ip, lockfile_content):
                 _log("Error. Failed to write lockfile: " + LOCKFILE)
                 sys.exit(1)
             content = _read_lock_file(instance_ip)
-            if content == test_uuid:
+            if content == lockfile_content:
                 return
+        else:
+            # Lockfile found, so check there really is an instance of this pipeline running,
+            # and if not delete it. Note: This is to work around the issue of a previous
+            # cancelled CI run leaving a dangling lockfile.
+            if _started_from_ci(content) and not _instance_running_in_ci():
+                _log("Dangling lockfile detected, deleting it...")
+                _delete_lock_file(instance_ip)
+                continue
         time.sleep(30)
     _log("Error. Timedout waiting for the cluster to become available")
     sys.exit(1)
@@ -323,7 +384,6 @@ def _main():
 
     _log("Waiting for the cluster to be available", as_banner=True)
     _wait_for_cluster(master_ip)
-
     def _delete_lock_file_atexit():
         if not _delete_lock_file(master_ip):
             _log("Error. Failed to delete lockfile: " + LOCKFILE)
