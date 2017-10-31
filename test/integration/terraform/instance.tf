@@ -7,14 +7,14 @@ variable "ssh_private_key" {
 }
 
 variable subnet_ocid {
-  default = "ocid1.subnet.oc1.phx.aaaaaaaahuxrgvs65iwdz7ekwgg3l5gyah7ww5klkwjcso74u3e4i64hvtvq"
+  default = "ocid1.subnet.oc1.phx.aaaaaaaab7gsl5sqgnxhrjwsg2ztk73c7thwnfzgtkof7h6umoby6e7yaj7q"
 }
 
 # Gets the OCID of the OS image to use
 data "oci_core_images" "os_image_ocid" {
     compartment_id = "${var.compartment_ocid}"
     operating_system = "Oracle Linux"
-    operating_system_version = "7.3"
+    operating_system_version = "7.4"
 }
 
 resource "oci_core_instance" "instance" {
@@ -68,17 +68,17 @@ resource null_resource "instance" {
 
   provisioner "file" "test_binary" {
     source      = "../../../dist/bin/integration-tests"
-    destination = "/tmp/integration-tests"
+    destination = "/home/opc/integration-tests"
   }
 
   provisioner "file" "driver_config" {
     content = "${data.template_file.driver_config.rendered}"
-    destination = "/tmp/config.yaml"
+    destination = "/home/opc/config.yaml"
   }
 
   provisioner "remote-exec" "run_tests" {
     inline = [
-      "chmod +x /tmp/integration-tests",
+      "chmod +x /home/opc/integration-tests",
     ]
   }
 }

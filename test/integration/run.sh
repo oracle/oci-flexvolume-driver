@@ -137,5 +137,5 @@ ssh \
     -o StrictHostKeyChecking=no \
     -i _tmp/instance_key \
     opc@${INSTANCE_IP} \
-    "bash --login -c \"sudo OCI_FLEXD_DRIVER_DIRECTORY=/tmp VOLUME_NAME=${VOLUME_NAME} /tmp/integration-tests -test.v\""
+    "bash --login -c \"sudo OCI_FLEXD_DRIVER_DIRECTORY=/home/opc VOLUME_NAME=${VOLUME_NAME} /home/opc/integration-tests -test.v\""
 RET_CODE=$?
