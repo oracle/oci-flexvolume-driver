@@ -1,0 +1,37 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: flex-set
+spec:
+  template:
+    metadata:
+      name: flex-deploy
+      labels:
+        app: flex-deploy
+    spec:
+      imagePullSecrets:
+        - name: odx-docker-pull-secret
+      containers:
+        - image: registry.oracledx.com/skeppare/flexdriver:latest
+          name: flex-deploy
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: flexvolume-mount
+              mountPath: /flexmnt
+            - name: flexpem
+              readOnly: true
+              mountPath: /flexmnt/oracle~oci
+            - name: flexconfig
+              readOnly: true
+              mountPath: /flexmnt/oracle~oci
+      volumes:
+        - name: flexvolume-mount
+          hostPath:
+            path: /usr/libexec/kubernetes/kubelet-plugins/volume/exec/
+        - name: flexpem
+          secret:
+            secretName: flexpem
+        - name: flexconfig
+          secret:
+            secretName: flexconfig
