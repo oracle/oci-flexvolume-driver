@@ -10,28 +10,16 @@ spec:
         app: flex-deploy
     spec:
       imagePullSecrets:
-        - name: odx-docker-pull-secret
+        - name: oci-docker-secret
       containers:
-        - image: registry.oracledx.com/skeppare/flexdriver:latest
+        - image: wcr.io/owainlewis/oci-flexvolume-driver:0.2.0
           name: flex-deploy
           securityContext:
             privileged: true
           volumeMounts:
             - name: flexvolume-mount
               mountPath: /flexmnt
-            - name: flexpem
-              readOnly: true
-              mountPath: /flexmnt/oracle~oci
-            - name: flexconfig
-              readOnly: true
-              mountPath: /flexmnt/oracle~oci
       volumes:
         - name: flexvolume-mount
           hostPath:
             path: /usr/libexec/kubernetes/kubelet-plugins/volume/exec/
-        - name: flexpem
-          secret:
-            secretName: flexpem
-        - name: flexconfig
-          secret:
-            secretName: flexconfig
