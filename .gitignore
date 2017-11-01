@@ -35,3 +35,5 @@ test/system/replication-controller.yaml
 test/system/runner.log
 
 *.retry
+
+manifests/config.yaml
