@@ -77,7 +77,7 @@ def _create_key_files():
 
 
 def _read_lock_file(instance_ip):
-    stdout, _, returncode = _run_command(_ssh(instance_ip, "cat " + LOCKFILE), ".")
+    stdout, _, returncode = _run_command(_ssh(instance_ip, "cat " + LOCKFILE), ".", display_errors=False)
     if returncode == 0:
         return stdout.strip()
     return None
@@ -240,7 +240,7 @@ def _poll(stdout, stderr):
     return (''.join(stdoutbuf), ''.join(stderrbuf))
 
 
-def _run_command(cmd, cwd):
+def _run_command(cmd, cwd, display_errors=True):
     _log(cwd + ": " + cmd)
     process = subprocess.Popen(cmd,
                                stdout=subprocess.PIPE,
@@ -248,7 +248,7 @@ def _run_command(cmd, cwd):
                                shell=True, cwd=cwd)
     (stdout, stderr) = _poll(process.stdout, process.stderr)
     returncode = process.wait()
-    if returncode != 0:
+    if returncode != 0 and display_errors:
         _log("    stdout: " + stdout)
         _log("    stderr: " + stderr)
         _log("    result: " + str(returncode))
@@ -425,6 +425,7 @@ def _main():
         _log("Running system test: ", as_banner=True)
 
         _log("Starting the replication controller (creates a single nginx pod).")
+        _run_command(_ssh(master_ip, "kubectl delete -f replication-controller.yaml"), ".", display_errors=False)
         _run_command(_ssh(master_ip, "kubectl create -f replication-controller.yaml"), ".")
 
         _log("Waiting for the pod to start.")
