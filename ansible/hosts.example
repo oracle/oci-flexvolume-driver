@@ -2,7 +2,9 @@
 ansible_ssh_user=opc
 
 [masters]
-master ansible_ssh_host=...
+130.61.45.45
 
 [workers]
-worker1 ansible_ssh_host=...
+130.61.45.200
+130.61.45.10
+130.61.45.34
