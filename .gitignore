@@ -35,3 +35,4 @@ test/system/replication-controller.yaml
 test/system/runner.log
 
 *.retry
+ansible/hosts
