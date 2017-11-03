@@ -7,7 +7,7 @@ variable "user_ocid" {
 }
 
 variable "fingerprint" {
-  default = "4d:f5:ff:0e:a9:10:e8:5a:d3:52:6a:f8:1e:99:a3:47"
+  default = "2c:29:18:b4:86:a5:d4:02:07:f4:41:6f:7d:64:02:11"
 }
 
 variable "private_key_path" {
