@@ -210,7 +210,7 @@ Due to [kubernetes/kubernetes#44737][7] ("Flex volumes which implement
 
 > Detach call uses volume name, so the plugin detach has to work with PV Name
 
-This means that the PV (Persistent Volume) name in the `pod.yml` _must_ be
+This means that the Persistent Volume (PV) name in the `pod.yml` _must_ be
 the last part of the block volume OCID ('.' separated). Otherwise, we would
 have no way of determining which volume to detach from which worker node. Even
 if we were to store state at the time of volume attachment PV names would have
@@ -232,3 +232,4 @@ Please checkout our documentation. If you find a bug, please raise an
 [4]: https://docs.us-phoenix-1.oraclecloud.com/Content/Compute/Tasks/gettingmetadata.htm
 [5]: https://docs.us-phoenix-1.oraclecloud.com/Content/API/SDKDocs/cli.htm
 [6]: https://github.com/oracle/oci-volume-provisioner
+[7]: https://github.com/kubernetes/kubernetes/issues/44737
