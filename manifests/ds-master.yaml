@@ -1,0 +1,28 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: flex-set
+spec:
+  template:
+    metadata:
+      name: flex-deploy
+      labels:
+        app: flex-deploy
+    spec:
+      imagePullSecrets:
+        - name: oci-docker-secret
+      containers:
+        - image: wcr.io/owainlewis/oci-flexvolume-driver:0.2.0
+          name: flex-deploy
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: flexvolume-mount
+              mountPath: /flexmnt
+      volumes:
+        - name: flexvolume-mount
+          hostPath:
+            path: /usr/libexec/kubernetes/kubelet-plugins/volume/exec/
+        - name: config
+          secret:
+            secretName: flexdriver-config
