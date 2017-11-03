@@ -221,8 +221,6 @@ characters and cannot contain '.'s. To reconstruct the OCID we use the region
 of the master on which `Detach()` is exected so this blocks support for cross
 region clusters.
 
-This issue is not set to be resolved until the release of Kubernetes 1.8.
-
 ## Support
 
 Please checkout our documentation. If you find a bug, please raise an
