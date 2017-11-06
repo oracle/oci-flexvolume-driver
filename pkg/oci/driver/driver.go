@@ -138,7 +138,7 @@ func (d OCIFlexvolumeDriver) Detach(pvOrVolumeName, nodeName string) flexvolume.
 		return flexvolume.Fail(err)
 	}
 
-	volumeOCID := fmt.Sprintf(volumeOCIDTemplate, c.GetConfig().Auth.RegionKey, pvOrVolumeName)
+	volumeOCID := deriveVolumeOCID(c.GetConfig().Auth.RegionKey, pvOrVolumeName)
 	attachment, err := c.FindVolumeAttachment(volumeOCID)
 	if err != nil {
 		return flexvolume.Fail(err)
@@ -171,7 +171,7 @@ func (d OCIFlexvolumeDriver) IsAttached(opts flexvolume.Options, nodeName string
 		return flexvolume.Fail(err)
 	}
 
-	volumeOCID := fmt.Sprintf(volumeOCIDTemplate, c.GetConfig().Auth.RegionKey, opts["kubernetes.io/pvOrVolumeName"])
+	volumeOCID := deriveVolumeOCID(c.GetConfig().Auth.RegionKey, opts["kubernetes.io/pvOrVolumeName"])
 	attachment, err := c.FindVolumeAttachment(volumeOCID)
 	if err != nil {
 		return flexvolume.DriverStatus{
