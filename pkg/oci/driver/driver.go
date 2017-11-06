@@ -67,6 +67,22 @@ func (d OCIFlexvolumeDriver) Init() flexvolume.DriverStatus {
 	return flexvolume.Succeed()
 }
 
+// deriveVolumeOCID will figure out the correct OCID for a volume
+// based solely on the region key and volumeName. Because of differences
+// across regions we need to impose some awkward logic here to get the correct
+// OCID
+func deriveVolumeOCID(regionKey string, volumeName string) string {
+	var volumeOCID string
+
+	if regionKey == "fra" {
+		volumeOCID = fmt.Sprintf(volumeOCIDTemplate, "eu-frankfurt-1", volumeName)
+	} else {
+		volumeOCID = fmt.Sprintf(volumeOCIDTemplate, regionKey, volumeName)
+	}
+
+	return volumeOCID
+}
+
 // Attach initiates the attachment of the given OCI volume to the k8s worker
 // node.
 func (d OCIFlexvolumeDriver) Attach(opts flexvolume.Options, nodeName string) flexvolume.DriverStatus {
@@ -80,7 +96,7 @@ func (d OCIFlexvolumeDriver) Attach(opts flexvolume.Options, nodeName string) fl
 		return flexvolume.Fail(err)
 	}
 
-	volumeOCID := fmt.Sprintf(volumeOCIDTemplate, c.GetConfig().Auth.RegionKey, opts["kubernetes.io/pvOrVolumeName"])
+	volumeOCID := deriveVolumeOCID(c.GetConfig().Auth.RegionKey, opts["kubernetes.io/pvOrVolumeName"])
 
 	log.Printf("Attaching volume %s -> instance %s", volumeOCID, instance.ID)
 
@@ -122,7 +138,7 @@ func (d OCIFlexvolumeDriver) Detach(pvOrVolumeName, nodeName string) flexvolume.
 		return flexvolume.Fail(err)
 	}
 
-	volumeOCID := fmt.Sprintf(volumeOCIDTemplate, c.GetConfig().Auth.RegionKey, pvOrVolumeName)
+	volumeOCID := deriveVolumeOCID(c.GetConfig().Auth.RegionKey, pvOrVolumeName)
 	attachment, err := c.FindVolumeAttachment(volumeOCID)
 	if err != nil {
 		return flexvolume.Fail(err)
@@ -155,7 +171,7 @@ func (d OCIFlexvolumeDriver) IsAttached(opts flexvolume.Options, nodeName string
 		return flexvolume.Fail(err)
 	}
 
-	volumeOCID := fmt.Sprintf(volumeOCIDTemplate, c.GetConfig().Auth.RegionKey, opts["kubernetes.io/pvOrVolumeName"])
+	volumeOCID := deriveVolumeOCID(c.GetConfig().Auth.RegionKey, opts["kubernetes.io/pvOrVolumeName"])
 	attachment, err := c.FindVolumeAttachment(volumeOCID)
 	if err != nil {
 		return flexvolume.DriverStatus{
