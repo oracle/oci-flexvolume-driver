@@ -226,6 +226,22 @@ region clusters.
 Please checkout our documentation. If you find a bug, please raise an
 [issue](https://github.com/oracle/oci-flexvolume-driver/issues/new)
 
+## Contributing
+
+`oci-flexvolume-driver` is an open source project. See [CONTRIBUTING](CONTRIBUTING.md) for
+details.
+
+Oracle gratefully acknowledges the contributions to this project that have been made
+by the community.
+
+## License
+
+Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
+
+`oci-flexvolume-driver` is licensed under the Apache License 2.0.
+
+See [LICENSE](LICENSE) for more details.
+
 [1]: https://docs.us-phoenix-1.oraclecloud.com/Content/Block/Concepts/overview.htm
 [2]: https://github.com/kubernetes/community/blob/master/contributors/devel/flexvolume.md
 [3]: https://github.com/oracle/oci-volume-provisoner
