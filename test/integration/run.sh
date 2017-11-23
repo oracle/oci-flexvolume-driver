@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Copyright 2017 The OCI Flexvolume Driver Authors
+# Copyright 2017 Oracle and/or its affiliates. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,13 +17,13 @@
 # Runs the integration tests for the OCI flexvolume driver.
 #
 # Required ENV vars:
-#  - $OCI_API_KEY (pointing to the pem file) or 
+#  - $OCI_API_KEY (pointing to the pem file) or
 #    $OCI_API_KEY_VAR (containing the base64 encoded pem file content)
 #
-#  - $INSTANCE_KEY (pointing to the private key file) or 
+#  - $INSTANCE_KEY (pointing to the private key file) or
 #    $INSTANCE_KEY_VAR (containing the base64 encoded private key file content)
 #
-#  - $INSTANCE_KEY_PUB (pointing to the public key file) or 
+#  - $INSTANCE_KEY_PUB (pointing to the public key file) or
 #    $INSTANCE_KEY_PUB_VAR (containing the base64 encoded public key file content)
 
 set -o errexit
