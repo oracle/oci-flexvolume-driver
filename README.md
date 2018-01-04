@@ -244,7 +244,7 @@ See [LICENSE](LICENSE) for more details.
 
 [1]: https://docs.us-phoenix-1.oraclecloud.com/Content/Block/Concepts/overview.htm
 [2]: https://github.com/kubernetes/community/blob/master/contributors/devel/flexvolume.md
-[3]: https://github.com/oracle/oci-volume-provisoner
+[3]: https://github.com/oracle/oci-volume-provisioner/
 [4]: https://docs.us-phoenix-1.oraclecloud.com/Content/Compute/Tasks/gettingmetadata.htm
 [5]: https://docs.us-phoenix-1.oraclecloud.com/Content/API/SDKDocs/cli.htm
 [6]: https://github.com/oracle/oci-volume-provisioner
