@@ -150,6 +150,34 @@ func (c client) getVnic(cache *cache.OCICache, id string) (*baremetal.Vnic, erro
 	return vnic, err
 }
 
+func (c *client) getAllSubnetsForVNC() (*[]baremetal.Subnet, error) {
+	var err error
+	subnetList := []baremetal.Subnet{}
+	opts := baremetal.ListOptions{}
+	for {
+		subnets, err := c.Client.ListSubnets(c.config.Auth.CompartmentOCID, c.config.Auth.VcnOCID, &opts)
+		if err != nil {
+			return nil, err
+		}
+		log.Printf("Subnets:%#v", subnets)
+		subnetList = append(subnetList, subnets.Subnets...)
+		if hasNextPage := SetNextPageOption(subnets.NextPage, &opts.PageListOptions); !hasNextPage {
+			break
+		}
+	}
+	return &subnetList, err
+}
+
+func (c *client) isVnicAttachmentInSubnets(vnicAttachment *baremetal.VnicAttachment,
+	subnets *[]baremetal.Subnet) bool {
+	for _, subnet := range *subnets {
+		if vnicAttachment.SubnetID == subnet.ID {
+			return true
+		}
+	}
+	return false
+}
+
 // findInstanceByNodeNameIsVnic try to find the BM Instance
 // // it makes the assumption that he nodename has to be resolvable
 // https://kubernetes.io/docs/concepts/architecture/nodes/#management
@@ -158,8 +186,13 @@ func (c client) getVnic(cache *cache.OCICache, id string) (*baremetal.Vnic, erro
 // I'm leaving the DNS lookup till later as the options below fix the OKE issue
 // 2) see if the nodename is equal to the hostname label
 // 3) see if the nodename is an ip
-
 func (c *client) findInstanceByNodeNameIsVnic(cache *cache.OCICache, nodeName string) (*baremetal.Instance, error) {
+	subnets, err := c.getAllSubnetsForVNC()
+	if err != nil {
+		log.Printf("Error getting subnets for VCN: %s", c.config.Auth.VcnOCID)
+		return nil, err
+	}
+
 	var running []baremetal.Instance
 	opts := &baremetal.ListVnicAttachmentsOptions{}
 	for {
@@ -168,6 +201,9 @@ func (c *client) findInstanceByNodeNameIsVnic(cache *cache.OCICache, nodeName st
 			return nil, err
 		}
 		for _, attachment := range vnicAttachments.Attachments {
+			if !c.isVnicAttachmentInSubnets(&attachment, subnets) {
+				continue
+			}
 			if attachment.State == baremetal.ResourceAttached {
 				vnic, err := c.getVnic(cache, attachment.VnicID)
 				if err != nil {
