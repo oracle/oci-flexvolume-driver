@@ -73,10 +73,10 @@ release:
     - github-create-release:
       token: $GITHUB_TOKEN
       tag: $GITHUB_RELEASE_VERSION
-      title: Application $GITHUB_RELEASE_VERSION
+      title: $GITHUB_RELEASE_VERSION
       draft: false
 
     - github-upload-asset:
       token: $GITHUB_TOKEN
-      file: $WERCKER_OUTPUT_DIR/dist/bin/oci
+      file: $WERCKER_OUTPUT_DIR/bin/oci
       filename: oci
