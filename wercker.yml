@@ -79,4 +79,5 @@ release:
     - github-upload-asset:
       token: $GITHUB_TOKEN
       file: ./dist/bin/oci
+      content-type: application/octet-stream
       filename: oci
