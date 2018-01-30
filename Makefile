@@ -15,8 +15,9 @@
 BIN := oci
 BUILD_DIR := dist
 BIN_DIR := ${BUILD_DIR}/bin
-VERSION := $(shell git describe --always --dirty)
 
+# Allow overriding for release versions
+VERSION ?= $(shell git describe --always --dirty)
 GOOS ?= linux
 GOARCH ?= amd64
 

@@ -70,10 +70,16 @@ system-test:
 
 release:
   steps:
+    - script:
+        name: set ENV vars
+        code: |
+          export VERSION=$(cat VERSION.txt)
+          echo "${VERSION}"
+
     - github-create-release:
       token: $GITHUB_TOKEN
-      tag: $GITHUB_RELEASE_VERSION
-      title: $GITHUB_RELEASE_VERSION
+      tag: $VERSION
+      title: $VERSION
       draft: false
 
     - github-upload-asset:
