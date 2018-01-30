@@ -78,5 +78,5 @@ release:
 
     - github-upload-asset:
       token: $GITHUB_TOKEN
-      file: $WERCKER_OUTPUT_DIR/bin/oci
+      file: ./dist/bin/oci
       filename: oci
