@@ -70,3 +70,7 @@ build-integration-tests:
 	    -i \
 	    -o ${BIN_DIR}/integration-tests \
 	    ./test/integration
+
+.PHONY: version
+version:
+	@echo ${VERSION}
