@@ -19,9 +19,10 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
-	baremetal "github.com/oracle/bmcs-go-sdk"
+	"github.com/oracle/oci-go-sdk/core"
 )
 
 func TempFileName(prefix, suffix string) string {
@@ -39,7 +40,8 @@ func TestCache(t *testing.T) {
 	}
 	defer cache.Close()
 
-	var testVnic = baremetal.Vnic{ID: "test"}
+	id := "test"
+	var testVnic = core.Vnic{Id: &id}
 	cache.SetVnic("test", &testVnic)
 	value, ok := cache.GetVnic("test")
 	if !ok {
@@ -80,7 +82,8 @@ func TestCacheLoadSave(t *testing.T) {
 		t.Error(err)
 	}
 	defer firstCache.Close()
-	var testVnic = baremetal.Vnic{ID: "test"}
+	id := "test"
+	var testVnic = core.Vnic{Id: &id}
 	firstCache.SetVnic("test", &testVnic)
 	value, ok := firstCache.GetVnic("test")
 	if !ok {
@@ -101,7 +104,8 @@ func TestCacheLoadSave(t *testing.T) {
 	if !ok {
 		t.Error("test not found")
 	}
-	if *value != testVnic {
+
+	if !reflect.DeepEqual(*value, testVnic) {
 		t.Error("Key not equal to test")
 	}
 	err = otherCache.Close()
@@ -119,7 +123,8 @@ func TestCacheParallel(t *testing.T) {
 			t.Error(err)
 		}
 		defer cache.Close()
-		var testVnic = baremetal.Vnic{ID: "test"}
+		id := "test"
+		var testVnic = core.Vnic{Id: &id}
 		cache.SetVnic("test", &testVnic)
 		value, ok := cache.GetVnic("test")
 		if !ok {

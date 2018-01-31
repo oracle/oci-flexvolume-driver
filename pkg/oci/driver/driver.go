@@ -19,11 +19,11 @@ import (
 	"log"
 	"os"
 
-	baremetal "github.com/oracle/bmcs-go-sdk"
-
 	"github.com/oracle/oci-flexvolume-driver/pkg/flexvolume"
 	"github.com/oracle/oci-flexvolume-driver/pkg/iscsi"
 	"github.com/oracle/oci-flexvolume-driver/pkg/oci/client"
+
+	"github.com/oracle/oci-go-sdk/core"
 )
 
 const (
@@ -98,39 +98,40 @@ func (d OCIFlexvolumeDriver) Attach(opts flexvolume.Options, nodeName string) fl
 
 	volumeOCID := deriveVolumeOCID(c.GetConfig().Auth.RegionKey, opts["kubernetes.io/pvOrVolumeName"])
 
-	log.Printf("Attaching volume %s -> instance %s", volumeOCID, instance.ID)
+	log.Printf("Attaching volume %s -> instance %s", volumeOCID, *instance.Id)
 
-	var attachment *baremetal.VolumeAttachment
-	attachment, err = c.AttachVolume("iscsi", instance.ID, volumeOCID, nil)
+	attachment, statusCode, err := c.AttachVolume(*instance.Id, volumeOCID)
 	if err != nil {
-		if apiErr, ok := err.(*baremetal.Error); ok {
-			if apiErr.Status != "409" {
-				log.Printf("AttachVolume: %+v", apiErr)
-				return flexvolume.Fail(apiErr)
-			}
-			// If we get a 409 conflict response when attaching we
-			// presume that the device is already attached.
-			log.Printf("Attach(): Volume %q already attached.", volumeOCID)
-			attachment, err = c.FindVolumeAttachment(volumeOCID)
-			if err != nil {
-				return flexvolume.Fail(err)
-			}
-			if attachment.InstanceID != instance.ID {
-				return flexvolume.Fail("Already attached to instance: ", instance.ID)
-			}
+		if statusCode != 409 {
+			log.Printf("AttachVolume: %+v", err)
+			return flexvolume.Fail(err)
+		}
+		// If we get a 409 conflict response when attaching we
+		// presume that the device is already attached.
+		log.Printf("Attach(): Volume %q already attached.", volumeOCID)
+		attachment, err = c.FindVolumeAttachment(volumeOCID)
+		if err != nil {
+			return flexvolume.Fail(err)
+		}
+		if *attachment.GetInstanceId() != *instance.Id {
+			return flexvolume.Fail("Already attached to instance: ", *instance.Id)
 		}
 	}
 
-	attachment, err = c.WaitForVolumeAttached(attachment.ID)
+	attachment, err = c.WaitForVolumeAttached(*attachment.GetId())
 	if err != nil {
 		return flexvolume.Fail(err)
 	}
 
-	log.Printf("attach: %s attached", attachment.ID)
+	log.Printf("attach: %s attached", *attachment.GetId())
+	iscsiAttachment, ok := attachment.(core.IScsiVolumeAttachment)
+	if !ok {
+		return flexvolume.Fail("Only ISCSI volume attachments are currently supported")
+	}
 
 	return flexvolume.DriverStatus{
 		Status: flexvolume.StatusSuccess,
-		Device: fmt.Sprintf(diskIDByPathTemplate, attachment.IPv4, attachment.Port, attachment.IQN),
+		Device: fmt.Sprintf(diskIDByPathTemplate, *iscsiAttachment.Ipv4, *iscsiAttachment.Port, *iscsiAttachment.Iqn),
 	}
 }
 
@@ -147,11 +148,15 @@ func (d OCIFlexvolumeDriver) Detach(pvOrVolumeName, nodeName string) flexvolume.
 		return flexvolume.Fail(err)
 	}
 
-	err = c.DetachVolume(attachment.ID, &baremetal.IfMatchOptions{})
+	err = c.DetachVolume(*attachment.GetId())
 	if err != nil {
 		return flexvolume.Fail(err)
 	}
 
+	err = c.WaitForVolumeDetached(*attachment.GetId())
+	if err != nil {
+		return flexvolume.Fail(err)
+	}
 	return flexvolume.Succeed()
 }
 
@@ -184,7 +189,7 @@ func (d OCIFlexvolumeDriver) IsAttached(opts flexvolume.Options, nodeName string
 		}
 	}
 
-	log.Printf("attach: found volume attachment %s", attachment.ID)
+	log.Printf("attach: found volume attachment %s", *attachment.GetId())
 
 	return flexvolume.DriverStatus{
 		Status:   flexvolume.StatusSuccess,

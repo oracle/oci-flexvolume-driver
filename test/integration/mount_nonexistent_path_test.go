@@ -21,9 +21,9 @@ import (
 	"github.com/oracle/oci-flexvolume-driver/pkg/oci/driver"
 )
 
-// TestMoutNonexistentPath checks an error is return when the required mout
+// TestMountNonexistentPath checks an error is return when the required mout
 // point does not exist during mounting.
-func TestMoutNonexistentPath(t *testing.T) {
+func TestMountNonexistentPath(t *testing.T) {
 	d := &driver.OCIFlexvolumeDriver{}
 	opts := flexvolume.Options{
 		"kubernetes.io/fsType":         "ext4",

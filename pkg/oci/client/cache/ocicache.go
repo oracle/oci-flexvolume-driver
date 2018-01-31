@@ -20,11 +20,11 @@ import (
 	"os"
 	"syscall"
 
-	baremetal "github.com/oracle/bmcs-go-sdk"
+	"github.com/oracle/oci-go-sdk/core"
 )
 
 type OCICache struct {
-	vnics    map[string]baremetal.Vnic
+	vnics    map[string]core.Vnic
 	file     *os.File
 	filename string
 }
@@ -41,7 +41,7 @@ func Open(filename string) (*OCICache, error) {
 		log.Printf("Failed to lock cache: %v", err)
 		return nil, err
 	}
-	var vnicCache = map[string]baremetal.Vnic{}
+	var vnicCache = map[string]core.Vnic{}
 	decoder := json.NewDecoder(file)
 	err = decoder.Decode(&vnicCache)
 	if err != nil {
@@ -51,13 +51,13 @@ func Open(filename string) (*OCICache, error) {
 }
 
 // GetVnic looks up the vnic id in the cache
-func (nc *OCICache) GetVnic(id string) (*baremetal.Vnic, bool) {
+func (nc *OCICache) GetVnic(id string) (*core.Vnic, bool) {
 	value, ok := nc.vnics[id]
 	return &value, ok
 }
 
 // SetVnic adds a vnic to the cache
-func (nc *OCICache) SetVnic(id string, value *baremetal.Vnic) {
+func (nc *OCICache) SetVnic(id string, value *core.Vnic) {
 	nc.vnics[id] = *value
 }
 

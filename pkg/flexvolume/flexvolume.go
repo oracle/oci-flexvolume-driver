@@ -230,14 +230,14 @@ func ExecDriver(driver Driver, args []string) {
 
 		ExitWithResult(driver.MountDevice(mountDir, mountDevice, opts))
 
-	// <driver executable> unmountdevice <mount device>
+	// <driver executable> unmountdevice <mount dir>
 	case "unmountdevice":
 		if len(args) != 3 {
 			ExitWithResult(Fail("unmountdevice expected exactly 3 arguments; got ", args))
 		}
 
-		mountDevice := args[2]
-		ExitWithResult(driver.UnmountDevice(mountDevice))
+		mountDir := args[2]
+		ExitWithResult(driver.UnmountDevice(mountDir))
 
 	// <driver executable> mount <mount dir> <json options>
 	case "mount":
