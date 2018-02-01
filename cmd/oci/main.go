@@ -23,8 +23,9 @@ import (
 	"github.com/oracle/oci-flexvolume-driver/pkg/oci/driver"
 )
 
-// version is set at build time to the version of the driver being built.
+// version/build is set at build time to the version of the driver being built.
 var version string
+var build string
 
 // GetLogPath returns the default path to the driver log file.
 func GetLogPath() string {
@@ -45,6 +46,6 @@ func main() {
 	defer f.Close()
 	log.SetOutput(f)
 
-	log.Printf("OCI FlexVolume Driver version: %s", version)
+	log.Printf("OCI FlexVolume Driver version: %s (%s)", version, build)
 	flexvolume.ExecDriver(&driver.OCIFlexvolumeDriver{}, os.Args)
 }
