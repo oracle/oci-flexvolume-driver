@@ -36,3 +36,5 @@ test/system/runner.log
 
 *.retry
 ansible/hosts
+
+.idea/

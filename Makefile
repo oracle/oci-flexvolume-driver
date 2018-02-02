@@ -16,8 +16,10 @@ BIN := oci
 BUILD_DIR := dist
 BIN_DIR := ${BUILD_DIR}/bin
 
+BUILD := $(shell git describe --always --dirty)
 # Allow overriding for release versions
-VERSION ?= $(shell git describe --always --dirty)
+# Else just equal the build (git hash)
+VERSION ?= ${BUILD}
 GOOS ?= linux
 GOARCH ?= amd64
 
@@ -55,7 +57,7 @@ build:
 	    go build \
 	    -i \
 	    -v \
-	    -ldflags="-s -w -X main.version=${VERSION}" \
+	    -ldflags="-s -w -X main.version=${VERSION} -X main.build=${BUILD}" \
 	    -o ${BIN_DIR}/${BIN} ./cmd/oci/
 
 .PHONY: build-integration-tests
