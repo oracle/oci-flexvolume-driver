@@ -115,6 +115,9 @@ func (d OCIFlexvolumeDriver) Attach(opts flexvolume.Options, nodeName string) fl
 			if err != nil {
 				return flexvolume.Fail(err)
 			}
+			if attachment.InstanceID != instance.ID {
+				return flexvolume.Fail("Already attached to instance: ", instance.ID)
+			}
 		}
 	}
 
