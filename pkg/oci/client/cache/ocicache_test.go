@@ -32,7 +32,7 @@ func TempFileName(prefix, suffix string) string {
 
 func TestCache(t *testing.T) {
 	cacheName := TempFileName("/tmp", "TestCache.json")
-	t.Logf("Testcache:%s", cacheName)
+	t.Logf("Testcache: %s", cacheName)
 	cache, err := Open(cacheName)
 	if err != nil {
 		t.Error(err)
@@ -56,7 +56,7 @@ func TestCache(t *testing.T) {
 
 func TestCacheMultipleClose(t *testing.T) {
 	cacheName := TempFileName("/tmp", "TestCache.json")
-	t.Logf("Testcache:%s", cacheName)
+	t.Logf("Testcache: %s", cacheName)
 	cache, err := Open(cacheName)
 	if err != nil {
 		t.Error(err)
@@ -74,7 +74,7 @@ func TestCacheMultipleClose(t *testing.T) {
 
 func TestCacheLoadSave(t *testing.T) {
 	cacheName := TempFileName("/tmp", "TestCache.json")
-	t.Logf("Testcache:%s", cacheName)
+	t.Logf("Testcache: %s", cacheName)
 	firstCache, err := Open(cacheName)
 	if err != nil {
 		t.Error(err)
@@ -112,7 +112,7 @@ func TestCacheLoadSave(t *testing.T) {
 
 func TestCacheParallel(t *testing.T) {
 	cacheName := TempFileName("/tmp", "TestCache.json")
-	t.Logf("Testcache:%s", cacheName)
+	t.Logf("Testcache: %s", cacheName)
 	use := func() {
 		cache, err := Open(cacheName)
 		if err != nil {

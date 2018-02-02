@@ -89,7 +89,7 @@ auth:
     <snip>
     -----END RSA PRIVATE KEY-----
   fingerprint: d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e
-  vnc: ocid1.vcn.oc1.phx.aaaaaaaaqiqmei4yen2fuyqaiqfcejpguqs6tuaf2n2iaxiwf5cfji2s636a
+  vcn: ocid1.vcn.oc1.phx.aaaaaaaaqiqmei4yen2fuyqaiqfcejpguqs6tuaf2n2iaxiwf5cfji2s636a
 ```
 
 If `"region"` and/or `"compartment"` are not specified in the config file

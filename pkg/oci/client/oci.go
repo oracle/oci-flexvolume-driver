@@ -288,7 +288,6 @@ func getCacheDirectory() string {
 // GetInstanceByNodeName retrieves the baremetal.Instance corresponding or a
 // SearchError if no instance matching the node name is found.
 func (c *client) GetInstanceByNodeName(nodeName string) (*baremetal.Instance, error) {
-	// Do we want to fail here or just not use the cache?
 	ociCache, err := cache.Open(fmt.Sprintf("%s/%s", getCacheDirectory(), "nodenamecache.json"))
 	if err != nil {
 		return nil, err
