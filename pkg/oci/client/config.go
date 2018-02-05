@@ -44,6 +44,7 @@ type AuthConfig struct {
 	UserOCID        string `yaml:"user"`
 	PrivateKey      string `yaml:"key"`
 	Fingerprint     string `yaml:"fingerprint"`
+	VcnOCID         string `yaml:"vcn"`
 }
 
 // Config holds the configuration for the OCI flexvolume driver.

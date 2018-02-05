@@ -17,10 +17,12 @@ package client
 import (
 	"fmt"
 	"log"
+	"os"
 	"strings"
 	"time"
 
 	baremetal "github.com/oracle/bmcs-go-sdk"
+	"github.com/oracle/oci-flexvolume-driver/pkg/oci/client/cache"
 )
 
 const (
@@ -134,6 +136,48 @@ func (c *client) FindVolumeAttachment(vID string) (*baremetal.VolumeAttachment, 
 	return nil, fmt.Errorf("failed to find volume attachment for %q", vID)
 }
 
+func (c client) getVnic(cache *cache.OCICache, id string) (*baremetal.Vnic, error) {
+	var err error
+	vnic, ok := cache.GetVnic(id)
+	if !ok {
+		vnic, err := c.GetVnic(id)
+		if err != nil {
+			log.Printf("Unable to get vnic for attachment:%s", id)
+		} else {
+			cache.SetVnic(id, vnic)
+		}
+	}
+	return vnic, err
+}
+
+func (c *client) getAllSubnetsForVNC() (*[]baremetal.Subnet, error) {
+	var err error
+	subnetList := []baremetal.Subnet{}
+	opts := baremetal.ListOptions{}
+	for {
+		subnets, err := c.Client.ListSubnets(c.config.Auth.CompartmentOCID, c.config.Auth.VcnOCID, &opts)
+		if err != nil {
+			return nil, err
+		}
+		log.Printf("Subnets:%#v", subnets)
+		subnetList = append(subnetList, subnets.Subnets...)
+		if hasNextPage := SetNextPageOption(subnets.NextPage, &opts.PageListOptions); !hasNextPage {
+			break
+		}
+	}
+	return &subnetList, err
+}
+
+func (c *client) isVnicAttachmentInSubnets(vnicAttachment *baremetal.VnicAttachment,
+	subnets *[]baremetal.Subnet) bool {
+	for _, subnet := range *subnets {
+		if vnicAttachment.SubnetID == subnet.ID {
+			return true
+		}
+	}
+	return false
+}
+
 // findInstanceByNodeNameIsVnic try to find the BM Instance
 // // it makes the assumption that he nodename has to be resolvable
 // https://kubernetes.io/docs/concepts/architecture/nodes/#management
@@ -142,7 +186,13 @@ func (c *client) FindVolumeAttachment(vID string) (*baremetal.VolumeAttachment, 
 // I'm leaving the DNS lookup till later as the options below fix the OKE issue
 // 2) see if the nodename is equal to the hostname label
 // 3) see if the nodename is an ip
-func (c *client) findInstanceByNodeNameIsVnic(nodeName string) (*baremetal.Instance, error) {
+func (c *client) findInstanceByNodeNameIsVnic(cache *cache.OCICache, nodeName string) (*baremetal.Instance, error) {
+	subnets, err := c.getAllSubnetsForVNC()
+	if err != nil {
+		log.Printf("Error getting subnets for VCN: %s", c.config.Auth.VcnOCID)
+		return nil, err
+	}
+
 	var running []baremetal.Instance
 	opts := &baremetal.ListVnicAttachmentsOptions{}
 	for {
@@ -151,17 +201,21 @@ func (c *client) findInstanceByNodeNameIsVnic(nodeName string) (*baremetal.Insta
 			return nil, err
 		}
 		for _, attachment := range vnicAttachments.Attachments {
+			if !c.isVnicAttachmentInSubnets(&attachment, subnets) {
+				continue
+			}
 			if attachment.State == baremetal.ResourceAttached {
-				vnic, err := c.GetVnic(attachment.VnicID)
+				vnic, err := c.getVnic(cache, attachment.VnicID)
 				if err != nil {
-					log.Printf("Unable to get vnic for attachment:%s", attachment.ID)
+					log.Printf("Error getting Vnic for attachment: %s(%v)", attachment.InstanceID, err)
+					continue
 				}
 
 				if vnic.PublicIPAddress == nodeName ||
 					(vnic.HostnameLabel != "" && strings.HasPrefix(nodeName, vnic.HostnameLabel)) {
 					instance, err := c.GetInstance(attachment.InstanceID)
 					if err != nil {
-						log.Printf("Error getting instance for attachment:%s", attachment.InstanceID)
+						log.Printf("Error getting instance for attachment: %s", attachment.InstanceID)
 						return nil, err
 					}
 					if instance.State == baremetal.ResourceRunning {
@@ -182,11 +236,12 @@ func (c *client) findInstanceByNodeNameIsVnic(nodeName string) (*baremetal.Insta
 	return &running[0], nil
 }
 
-func (c *client) findInstanceByNodeNameIsDisplayName(nodeName string) (*baremetal.Instance, error) {
+func (c *client) findInstanceByNodeNameIsDisplayName(cache *cache.OCICache, nodeName string) (*baremetal.Instance, error) {
 	opts := &baremetal.ListInstancesOptions{
 		DisplayNameListOptions: baremetal.DisplayNameListOptions{
 			DisplayName: nodeName,
 		},
+		ListOptions: baremetal.ListOptions{LimitListOptions: baremetal.LimitListOptions{Limit: 30}},
 	}
 
 	var running []baremetal.Instance
@@ -214,13 +269,36 @@ func (c *client) findInstanceByNodeNameIsDisplayName(nodeName string) (*baremeta
 	return &running[0], nil
 }
 
-// GetInstanceByNodeName retrieves the baremetal.Instance corresponding or a
+// GetDriverDirectory gets the path for the flexvolume driver either from the
+// env or default.
+func getCacheDirectory() string {
+	path := os.Getenv("OCI_FLEXD_CACHE_DIRECTORY")
+	if path != "" {
+		return path
+	}
+
+	path = os.Getenv("OCI_FLEXD_DRIVER_DIRECTORY")
+	if path != "" {
+		return path
+	}
+
+	return "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci"
+}
+
+// GetInstanceByNodeName retrieves the corresponding baremetal.Instance or a
 // SearchError if no instance matching the node name is found.
 func (c *client) GetInstanceByNodeName(nodeName string) (*baremetal.Instance, error) {
-	instance, err := c.findInstanceByNodeNameIsDisplayName(nodeName)
+	ociCache, err := cache.Open(fmt.Sprintf("%s/%s", getCacheDirectory(), "nodenamecache.json"))
+	if err != nil {
+		return nil, err
+	}
+	defer ociCache.Close()
+
+	// Cache lookup failed so time to refill the cache
+	instance, err := c.findInstanceByNodeNameIsDisplayName(ociCache, nodeName)
 	if err != nil {
 		log.Printf("Unable to find OCI instance by displayname trying hostname/public ip")
-		instance, err = c.findInstanceByNodeNameIsVnic(nodeName)
+		instance, err = c.findInstanceByNodeNameIsVnic(ociCache, nodeName)
 		if err != nil {
 			log.Printf("Unable to find OCI instance by hostname/displayname")
 		}
