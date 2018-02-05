@@ -15,14 +15,17 @@
 package client
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"strings"
 	"time"
 
-	baremetal "github.com/oracle/bmcs-go-sdk"
 	"github.com/oracle/oci-flexvolume-driver/pkg/oci/client/cache"
+
+	"github.com/oracle/oci-go-sdk/common"
+	"github.com/oracle/oci-go-sdk/core"
 )
 
 const (
@@ -35,37 +38,39 @@ const (
 type Interface interface {
 	// FindVolumeAttachment searches for a volume attachment in either the state
 	// ATTACHING or ATTACHED and returns the first volume attachment found.
-	FindVolumeAttachment(vID string) (*baremetal.VolumeAttachment, error)
+	FindVolumeAttachment(volumeId string) (core.VolumeAttachment, error)
 
 	// WaitForVolumeAttached polls waiting for a OCI block volume to be in the
 	// ATTACHED state.
-	WaitForVolumeAttached(id string) (*baremetal.VolumeAttachment, error)
+	WaitForVolumeAttached(volumeAttachmentId string) (core.VolumeAttachment, error)
 
-	// GetInstanceByNodeName retrieves the baremetal.Instance corresponding or
+	// GetInstanceByNodeName retrieves the oci.Instance corresponding or
 	// a SearchError if no instance matching the node name is found.
-	GetInstanceByNodeName(name string) (*baremetal.Instance, error)
-
-	// GetConfig returns the Config associated with the OCI API client.
-	GetConfig() *Config
+	GetInstanceByNodeName(name string) (*core.Instance, error)
 
 	// AttachVolume attaches a block storage volume to the specified instance.
 	// See https://docs.us-phoenix-1.oraclecloud.com/api/#/en/iaas/20160918/VolumeAttachment/AttachVolume
-	AttachVolume(
-		attachmentType,
-		instanceID,
-		volumeID string,
-		opts *baremetal.CreateOptions,
-	) (*baremetal.VolumeAttachment, error)
+	AttachVolume(instanceId, volumeId string) (core.VolumeAttachment, int, error)
 
 	// DetachVolume detaches a storage volume from the specified instance.
 	// See: https://docs.us-phoenix-1.oraclecloud.com/api/#/en/iaas/20160918/Volume/DetachVolume
-	DetachVolume(id string, opts *baremetal.IfMatchOptions) error
+	DetachVolume(volumeAttachmentId string) error
+
+	// WaitForVolumeDetached polls waiting for a OCI block volume to be in the
+	// DETACHED state.
+	WaitForVolumeDetached(volumeAttachmentId string) error
+
+	// GetConfig returns the Config associated with the OCI API client.
+	GetConfig() *Config
 }
 
 // client extends a barmetal.Client.
 type client struct {
-	*baremetal.Client
-	config *Config
+	compute *core.ComputeClient
+	network *core.VirtualNetworkClient
+	config  *Config
+	ctx     context.Context
+	timeout time.Duration
 }
 
 // New initialises a OCI API client from a config file.
@@ -74,37 +79,55 @@ func New(configPath string) (Interface, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	baseClient, err := baremetal.NewClient(
-		config.Auth.UserOCID,
+	configProvider := common.NewRawConfigurationProvider(
 		config.Auth.TenancyOCID,
+		config.Auth.UserOCID,
+		config.Auth.Region,
 		config.Auth.Fingerprint,
-		baremetal.PrivateKeyBytes([]byte(config.Auth.PrivateKey)),
-		baremetal.Region(config.Auth.Region))
+		config.Auth.PrivateKey,
+		nil,
+	)
+	computeClient, err := core.NewComputeClientWithConfigurationProvider(configProvider)
 	if err != nil {
 		return nil, err
 	}
-
-	return &client{Client: baseClient, config: config}, nil
+	virtualNetworkClient, err := core.NewVirtualNetworkClientWithConfigurationProvider(configProvider)
+	if err != nil {
+		return nil, err
+	}
+	return &client{
+		compute: &computeClient,
+		network: &virtualNetworkClient,
+		config:  config,
+		ctx:     context.Background(),
+		timeout: time.Minute}, nil
 }
 
 // WaitForVolumeAttached polls waiting for a OCI block volume to be in the
 // ATTACHED state.
-func (c *client) WaitForVolumeAttached(id string) (*baremetal.VolumeAttachment, error) {
+func (c *client) WaitForVolumeAttached(volumeAttachmentId string) (core.VolumeAttachment, error) {
 	// TODO: Replace with "k8s.io/apimachinery/pkg/util/wait".
+	request := core.GetVolumeAttachmentRequest{
+		VolumeAttachmentId: &volumeAttachmentId,
+	}
 	for i := 0; i < ociMaxRetries; i++ {
-		at, err := c.GetVolumeAttachment(id)
+		r, err := func() (core.GetVolumeAttachmentResponse, error) {
+			ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+			defer cancel()
+			return c.compute.GetVolumeAttachment(ctx, request)
+		}()
 		if err != nil {
 			return nil, err
 		}
-
-		switch at.State {
-		case baremetal.ResourceAttaching:
+		attachment := r.VolumeAttachment
+		state := attachment.GetLifecycleState()
+		switch state {
+		case core.VolumeAttachmentLifecycleStateAttaching:
 			time.Sleep(ociWaitDuration)
-		case baremetal.ResourceAttached:
-			return at, nil
+		case core.VolumeAttachmentLifecycleStateAttached:
+			return attachment, nil
 		default:
-			return nil, fmt.Errorf("unexpected state %q while wating for volume attach", at.State)
+			return nil, fmt.Errorf("unexpected state %q while wating for volume attach", state)
 		}
 	}
 	return nil, fmt.Errorf("maximum number of retries (%d) exceeed attaching volume", ociMaxRetries)
@@ -112,66 +135,70 @@ func (c *client) WaitForVolumeAttached(id string) (*baremetal.VolumeAttachment, 
 
 // FindVolumeAttachment searches for a volume attachment in either the state of
 // ATTACHING or ATTACHED and returns the first volume attachment found.
-func (c *client) FindVolumeAttachment(vID string) (*baremetal.VolumeAttachment, error) {
-	opts := &baremetal.ListVolumeAttachmentsOptions{VolumeID: vID}
-
+func (c *client) FindVolumeAttachment(volumeId string) (core.VolumeAttachment, error) {
+	var page *string
 	for {
-		r, err := c.ListVolumeAttachments(c.config.Auth.CompartmentOCID, opts)
+		request := core.ListVolumeAttachmentsRequest{
+			CompartmentId: &c.config.Auth.CompartmentOCID,
+			Page:          page,
+			VolumeId:      &volumeId,
+		}
+
+		r, err := func() (core.ListVolumeAttachmentsResponse, error) {
+			ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+			defer cancel()
+			return c.compute.ListVolumeAttachments(ctx, request)
+		}()
 		if err != nil {
 			return nil, err
 		}
 
-		for _, attachment := range r.VolumeAttachments {
-			if attachment.State == baremetal.ResourceAttaching ||
-				attachment.State == baremetal.ResourceAttached {
-				return &attachment, nil
+		for _, attachment := range r.Items {
+			state := attachment.GetLifecycleState()
+			if state == core.VolumeAttachmentLifecycleStateAttaching ||
+				state == core.VolumeAttachmentLifecycleStateAttached {
+				return attachment, nil
 			}
 		}
 
-		if hasNextPage := SetNextPageOption(r.NextPage, &opts.ListOptions.PageListOptions); !hasNextPage {
+		if page = r.OpcNextPage; r.OpcNextPage == nil {
 			break
 		}
 	}
 
-	return nil, fmt.Errorf("failed to find volume attachment for %q", vID)
+	return nil, fmt.Errorf("failed to find volume attachment for %q", volumeId)
 }
 
-func (c client) getVnic(cache *cache.OCICache, id string) (*baremetal.Vnic, error) {
-	var err error
-	vnic, ok := cache.GetVnic(id)
-	if !ok {
-		vnic, err := c.GetVnic(id)
-		if err != nil {
-			log.Printf("Unable to get vnic for attachment:%s", id)
-		} else {
-			cache.SetVnic(id, vnic)
-		}
-	}
-	return vnic, err
-}
-
-func (c *client) getAllSubnetsForVNC() (*[]baremetal.Subnet, error) {
-	var err error
-	subnetList := []baremetal.Subnet{}
-	opts := baremetal.ListOptions{}
+func (c *client) getAllSubnetsForVNC() (*[]core.Subnet, error) {
+	var page *string
+	subnetList := []core.Subnet{}
 	for {
-		subnets, err := c.Client.ListSubnets(c.config.Auth.CompartmentOCID, c.config.Auth.VcnOCID, &opts)
+		request := core.ListSubnetsRequest{
+			CompartmentId: &c.config.Auth.CompartmentOCID,
+			VcnId:         &c.config.Auth.VcnOCID,
+			Page:          page,
+		}
+		r, err := func() (core.ListSubnetsResponse, error) {
+			ctx, cancel := context.WithTimeout(c.ctx, time.Minute)
+			defer cancel()
+			return c.network.ListSubnets(ctx, request)
+		}()
 		if err != nil {
 			return nil, err
 		}
+		subnets := r.Items
 		log.Printf("Subnets:%#v", subnets)
-		subnetList = append(subnetList, subnets.Subnets...)
-		if hasNextPage := SetNextPageOption(subnets.NextPage, &opts.PageListOptions); !hasNextPage {
+		subnetList = append(subnetList, subnets...)
+		if page = r.OpcNextPage; r.OpcNextPage == nil {
 			break
 		}
 	}
-	return &subnetList, err
+	return &subnetList, nil
 }
 
-func (c *client) isVnicAttachmentInSubnets(vnicAttachment *baremetal.VnicAttachment,
-	subnets *[]baremetal.Subnet) bool {
+func (c *client) isVnicAttachmentInSubnets(vnicAttachment *core.VnicAttachment, subnets *[]core.Subnet) bool {
 	for _, subnet := range *subnets {
-		if vnicAttachment.SubnetID == subnet.ID {
+		if vnicAttachment.SubnetId == subnet.Id {
 			return true
 		}
 	}
@@ -186,46 +213,72 @@ func (c *client) isVnicAttachmentInSubnets(vnicAttachment *baremetal.VnicAttachm
 // I'm leaving the DNS lookup till later as the options below fix the OKE issue
 // 2) see if the nodename is equal to the hostname label
 // 3) see if the nodename is an ip
-func (c *client) findInstanceByNodeNameIsVnic(cache *cache.OCICache, nodeName string) (*baremetal.Instance, error) {
+func (c *client) findInstanceByNodeNameIsVnic(cache *cache.OCICache, nodeName string) (*core.Instance, error) {
 	subnets, err := c.getAllSubnetsForVNC()
 	if err != nil {
 		log.Printf("Error getting subnets for VCN: %s", c.config.Auth.VcnOCID)
 		return nil, err
 	}
 
-	var running []baremetal.Instance
-	opts := &baremetal.ListVnicAttachmentsOptions{}
+	var running []core.Instance
+	var page *string
 	for {
-		vnicAttachments, err := c.ListVnicAttachments(c.config.Auth.CompartmentOCID, opts)
+		vnicAttachmentsRequest := core.ListVnicAttachmentsRequest{
+			CompartmentId: &c.config.Auth.CompartmentOCID,
+			Page:          page,
+		}
+		vnicAttachments, err := func() (core.ListVnicAttachmentsResponse, error) {
+			ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+			defer cancel()
+			return c.compute.ListVnicAttachments(ctx, vnicAttachmentsRequest)
+		}()
 		if err != nil {
 			return nil, err
 		}
-		for _, attachment := range vnicAttachments.Attachments {
+		for _, attachment := range vnicAttachments.Items {
 			if !c.isVnicAttachmentInSubnets(&attachment, subnets) {
 				continue
 			}
-			if attachment.State == baremetal.ResourceAttached {
-				vnic, err := c.getVnic(cache, attachment.VnicID)
-				if err != nil {
-					log.Printf("Error getting Vnic for attachment: %s(%v)", attachment.InstanceID, err)
-					continue
-				}
-
-				if vnic.PublicIPAddress == nodeName ||
-					(vnic.HostnameLabel != "" && strings.HasPrefix(nodeName, vnic.HostnameLabel)) {
-					instance, err := c.GetInstance(attachment.InstanceID)
+			if attachment.LifecycleState == core.VnicAttachmentLifecycleStateAttached {
+				vnic, ok := cache.GetVnic(*attachment.VnicId)
+				if !ok {
+					vnicRequest := core.GetVnicRequest{
+						VnicId: attachment.VnicId,
+					}
+					vnicResponse, err := func() (core.GetVnicResponse, error) {
+						ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+						defer cancel()
+						return c.network.GetVnic(ctx, vnicRequest)
+					}()
 					if err != nil {
-						log.Printf("Error getting instance for attachment: %s", attachment.InstanceID)
+						log.Printf("Error getting Vnic for attachment: %s(%v)", *attachment.Id, err)
+						continue
+					}
+					vnic = &vnicResponse.Vnic
+					cache.SetVnic(*attachment.VnicId, vnic)
+				}
+				if *vnic.PublicIp == nodeName ||
+					(*vnic.HostnameLabel != "" && strings.HasPrefix(nodeName, *vnic.HostnameLabel)) {
+					instanceRequest := core.GetInstanceRequest{
+						InstanceId: attachment.InstanceId,
+					}
+					instanceResponse, err := func() (core.GetInstanceResponse, error) {
+						ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+						defer cancel()
+						return c.compute.GetInstance(ctx, instanceRequest)
+					}()
+					if err != nil {
+						log.Printf("Error getting instance for attachment: %s", *attachment.InstanceId)
 						return nil, err
 					}
-					if instance.State == baremetal.ResourceRunning {
-						log.Printf("Adding instace %#v due to vnic %#v matching %s", *instance, *vnic, nodeName)
-						running = append(running, *instance)
+					instance := instanceResponse.Instance
+					if instance.LifecycleState == core.InstanceLifecycleStateRunning {
+						running = append(running, instance)
 					}
 				}
 			}
 		}
-		if hasNextPage := SetNextPageOption(vnicAttachments.NextPage, &opts.ListOptions.PageListOptions); !hasNextPage {
+		if page = vnicAttachments.OpcNextPage; vnicAttachments.OpcNextPage == nil {
 			break
 		}
 	}
@@ -236,28 +289,31 @@ func (c *client) findInstanceByNodeNameIsVnic(cache *cache.OCICache, nodeName st
 	return &running[0], nil
 }
 
-func (c *client) findInstanceByNodeNameIsDisplayName(cache *cache.OCICache, nodeName string) (*baremetal.Instance, error) {
-	opts := &baremetal.ListInstancesOptions{
-		DisplayNameListOptions: baremetal.DisplayNameListOptions{
-			DisplayName: nodeName,
-		},
-		ListOptions: baremetal.ListOptions{LimitListOptions: baremetal.LimitListOptions{Limit: 30}},
-	}
-
-	var running []baremetal.Instance
+func (c *client) findInstanceByNodeNameIsDisplayName(nodeName string) (*core.Instance, error) {
+	var running []core.Instance
+	var page *string
 	for {
-		r, err := c.ListInstances(c.config.Auth.CompartmentOCID, opts)
+		listInstancesRequest := core.ListInstancesRequest{
+			CompartmentId: &c.config.Auth.CompartmentOCID,
+			DisplayName:   &nodeName,
+			Page:          page,
+		}
+		r, err := func() (core.ListInstancesResponse, error) {
+			ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+			defer cancel()
+			return c.compute.ListInstances(ctx, listInstancesRequest)
+		}()
 		if err != nil {
 			return nil, err
 		}
 
-		for _, i := range r.Instances {
-			if i.State == baremetal.ResourceRunning {
+		for _, i := range r.Items {
+			if i.LifecycleState == core.InstanceLifecycleStateRunning {
 				running = append(running, i)
 			}
 		}
 
-		if hasNexPage := SetNextPageOption(r.NextPage, &opts.ListOptions.PageListOptions); !hasNexPage {
+		if page = r.OpcNextPage; r.OpcNextPage == nil {
 			break
 		}
 	}
@@ -285,9 +341,9 @@ func getCacheDirectory() string {
 	return "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci"
 }
 
-// GetInstanceByNodeName retrieves the corresponding baremetal.Instance or a
+// GetInstanceByNodeName retrieves the corresponding core.Instance or a
 // SearchError if no instance matching the node name is found.
-func (c *client) GetInstanceByNodeName(nodeName string) (*baremetal.Instance, error) {
+func (c *client) GetInstanceByNodeName(nodeName string) (*core.Instance, error) {
 	ociCache, err := cache.Open(fmt.Sprintf("%s/%s", getCacheDirectory(), "nodenamecache.json"))
 	if err != nil {
 		return nil, err
@@ -295,7 +351,7 @@ func (c *client) GetInstanceByNodeName(nodeName string) (*baremetal.Instance, er
 	defer ociCache.Close()
 
 	// Cache lookup failed so time to refill the cache
-	instance, err := c.findInstanceByNodeNameIsDisplayName(ociCache, nodeName)
+	instance, err := c.findInstanceByNodeNameIsDisplayName(nodeName)
 	if err != nil {
 		log.Printf("Unable to find OCI instance by displayname trying hostname/public ip")
 		instance, err = c.findInstanceByNodeNameIsVnic(ociCache, nodeName)
@@ -304,6 +360,71 @@ func (c *client) GetInstanceByNodeName(nodeName string) (*baremetal.Instance, er
 		}
 	}
 	return instance, err
+}
+
+// AttachVolume attaches a block storage volume to the specified instance.
+func (c *client) AttachVolume(instanceId, volumeId string) (core.VolumeAttachment, int, error) {
+	request := core.AttachVolumeRequest{
+		AttachVolumeDetails: core.AttachIScsiVolumeDetails{
+			InstanceId: &instanceId,
+			VolumeId:   &volumeId,
+		},
+	}
+	r, err := func() (core.AttachVolumeResponse, error) {
+		ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+		defer cancel()
+		return c.compute.AttachVolume(ctx, request)
+	}()
+	if err != nil {
+		return nil, r.RawResponse.StatusCode, err
+	}
+	return r.VolumeAttachment, r.RawResponse.StatusCode, nil
+}
+
+// DetachVolume detaches a storage volume from the specified instance.
+func (c *client) DetachVolume(volumeAttachmentId string) error {
+	request := core.DetachVolumeRequest{
+		VolumeAttachmentId: &volumeAttachmentId,
+	}
+	err := func() error {
+		ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+		defer cancel()
+		return c.compute.DetachVolume(ctx, request)
+	}()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// WaitForVolumeDetached polls waiting for a OCI block volume to be in the
+// DETACHED state.
+func (c *client) WaitForVolumeDetached(volumeAttachmentId string) error {
+	// TODO: Replace with "k8s.io/apimachinery/pkg/util/wait".
+	request := core.GetVolumeAttachmentRequest{
+		VolumeAttachmentId: &volumeAttachmentId,
+	}
+	for i := 0; i < ociMaxRetries; i++ {
+		r, err := func() (core.GetVolumeAttachmentResponse, error) {
+			ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+			defer cancel()
+			return c.compute.GetVolumeAttachment(ctx, request)
+		}()
+		if err != nil {
+			return err
+		}
+		attachment := r.VolumeAttachment
+		state := attachment.GetLifecycleState()
+		switch state {
+		case core.VolumeAttachmentLifecycleStateDetaching:
+			time.Sleep(ociWaitDuration)
+		case core.VolumeAttachmentLifecycleStateDetached:
+			return nil
+		default:
+			return fmt.Errorf("unexpected state %q while wating for volume detach", state)
+		}
+	}
+	return fmt.Errorf("maximum number of retries (%d) exceeed detaching volume", ociMaxRetries)
 }
 
 // GetConfig returns the Config associated with the OCI API client.

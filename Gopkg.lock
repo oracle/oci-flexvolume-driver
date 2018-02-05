@@ -3,15 +3,9 @@
 
 [[projects]]
   branch = "master"
-  name = "github.com/google/go-querystring"
-  packages = ["query"]
-  revision = "53e6ce116135b80d037921a7fdd5138cf32d7a8a"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/oracle/bmcs-go-sdk"
-  packages = ["."]
-  revision = "8bd0f941051cb0b148782b962b81b5d4f510f30a"
+  name = "github.com/oracle/oci-go-sdk"
+  packages = ["common","core"]
+  revision = "52acb91a0461799f2b920b986c6d492364a68ae1"
 
 [[projects]]
   branch = "v2"
@@ -34,6 +28,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "7b6100ebf38b9477b81061c210652bbd17c44ed00e1009199eebc29bbec60d20"
+  inputs-digest = "e04a6cc228875184d07d1fbdad2a6bd8ec8fdfc4f723e17138536095cdcaffd7"
   solver-name = "gps-cdcl"
   solver-version = 1

@@ -11,15 +11,15 @@ cd test/system
 ./runnner.py
 ```
 
-Note: This will provision a new 3 node kubernetescluster on OCI, and a new volume on which to run the test.
-If we want to run the tests and keep the infrastructure around for future runs, then execute the following:
+Note: This will provision a new test volume. If we want to run the tests and keep this test volume 
+around for future runs, then execute the following:
 
 ```
 cd test/integration
 ./runnner.py --no-destroy
 ```
 
-Then if we want to run the tests on a cluster/volume that already exists (i.e. skip the provisioning step),
+Then if we want to run the tests on a volume that already exists (i.e. skip the provisioning step),
 execute the following:
 
 ```
