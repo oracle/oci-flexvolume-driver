@@ -39,7 +39,7 @@ func TestCache(t *testing.T) {
 	}
 	defer cache.Close()
 
-	var testVnic baremetal.Vnic = baremetal.Vnic{ID: "test"}
+	var testVnic = baremetal.Vnic{ID: "test"}
 	cache.SetVnic("test", &testVnic)
 	value, ok := cache.GetVnic("test")
 	if !ok {

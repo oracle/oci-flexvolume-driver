@@ -29,7 +29,7 @@ type OCICache struct {
 	filename string
 }
 
-// Opne opens the cached and returns the chache handle
+// Open opens the cache and returns the cache handle
 func Open(filename string) (*OCICache, error) {
 	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {

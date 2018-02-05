@@ -269,7 +269,7 @@ func (c *client) findInstanceByNodeNameIsDisplayName(cache *cache.OCICache, node
 	return &running[0], nil
 }
 
-// GetDriverDirectory gets the ath for the flexvolume driver either from the
+// GetDriverDirectory gets the path for the flexvolume driver either from the
 // env or default.
 func getCacheDirectory() string {
 	path := os.Getenv("OCI_FLEXD_CACHE_DIRECTORY")
@@ -285,7 +285,7 @@ func getCacheDirectory() string {
 	return "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci"
 }
 
-// GetInstanceByNodeName retrieves the baremetal.Instance corresponding or a
+// GetInstanceByNodeName retrieves the corresponding baremetal.Instance or a
 // SearchError if no instance matching the node name is found.
 func (c *client) GetInstanceByNodeName(nodeName string) (*baremetal.Instance, error) {
 	ociCache, err := cache.Open(fmt.Sprintf("%s/%s", getCacheDirectory(), "nodenamecache.json"))
