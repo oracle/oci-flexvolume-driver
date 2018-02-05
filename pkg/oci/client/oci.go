@@ -341,7 +341,7 @@ func getCacheDirectory() string {
 	return "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci"
 }
 
-// GetInstanceByNodeName retrieves the core.Instance corresponding or a
+// GetInstanceByNodeName retrieves the corresponding core.Instance or a
 // SearchError if no instance matching the node name is found.
 func (c *client) GetInstanceByNodeName(nodeName string) (*core.Instance, error) {
 	ociCache, err := cache.Open(fmt.Sprintf("%s/%s", getCacheDirectory(), "nodenamecache.json"))
