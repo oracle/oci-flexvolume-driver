@@ -32,7 +32,7 @@ build:
 
 integration-test:
   box:
-    id: wcr.io/$DOCKER_REGISTRY_USERNAME/oci-flexvolume-driver-system-test:1.0.0
+    id: wcr.io/oracle/oci-flexvolume-driver-system-test:1.0.0
     registry: https://wcr.io/v2
     username: $DOCKER_REGISTRY_USERNAME
     password: $DOCKER_REGISTRY_PASSWORD
@@ -45,7 +45,7 @@ integration-test:
 
 system-test:
   box:
-    id: wcr.io/$DOCKER_REGISTRY_USERNAME/oci-flexvolume-driver-system-test:1.0.0
+    id: wcr.io/oracle/oci-flexvolume-driver-system-test:1.0.0
     registry: https://wcr.io/v2
     username: $DOCKER_REGISTRY_USERNAME
     password: $DOCKER_REGISTRY_PASSWORD
