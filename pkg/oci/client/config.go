@@ -37,14 +37,15 @@ var ociRegions = map[string]string{
 // AuthConfig holds the configuration required for communicating with the OCI
 // API.
 type AuthConfig struct {
-	Region          string `yaml:"region"`
-	RegionKey       string `yaml:"regionKey"`
-	TenancyOCID     string `yaml:"tenancy"`
-	CompartmentOCID string `yaml:"compartment"`
-	UserOCID        string `yaml:"user"`
-	PrivateKey      string `yaml:"key"`
-	Fingerprint     string `yaml:"fingerprint"`
-	VcnOCID         string `yaml:"vcn"`
+	Region               string `yaml:"region"`
+	RegionKey            string `yaml:"regionKey"`
+	TenancyOCID          string `yaml:"tenancy"`
+	CompartmentOCID      string `yaml:"compartment"`
+	UserOCID             string `yaml:"user"`
+	PrivateKey           string `yaml:"key"`
+	PrivateKeyPassphrase string `yaml:"passphase"`
+	Fingerprint          string `yaml:"fingerprint"`
+	VcnOCID              string `yaml:"vcn"`
 }
 
 // Config holds the configuration for the OCI flexvolume driver.
