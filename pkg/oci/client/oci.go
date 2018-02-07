@@ -187,7 +187,7 @@ func (c *client) getAllSubnetsForVNC() (*[]core.Subnet, error) {
 			return nil, err
 		}
 		subnets := r.Items
-		log.Printf("Subnets:%#v", subnets)
+
 		subnetList = append(subnetList, subnets...)
 		if page = r.OpcNextPage; r.OpcNextPage == nil {
 			break
@@ -198,7 +198,7 @@ func (c *client) getAllSubnetsForVNC() (*[]core.Subnet, error) {
 
 func (c *client) isVnicAttachmentInSubnets(vnicAttachment *core.VnicAttachment, subnets *[]core.Subnet) bool {
 	for _, subnet := range *subnets {
-		if vnicAttachment.SubnetId == subnet.Id {
+		if *vnicAttachment.SubnetId == *subnet.Id {
 			return true
 		}
 	}
