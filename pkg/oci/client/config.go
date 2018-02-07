@@ -43,7 +43,7 @@ type AuthConfig struct {
 	CompartmentOCID      string `yaml:"compartment"`
 	UserOCID             string `yaml:"user"`
 	PrivateKey           string `yaml:"key"`
-	PrivateKeyPassphrase string `yaml:"passphase"`
+	PrivateKeyPassphrase string `yaml:"key_passphase"`
 	Fingerprint          string `yaml:"fingerprint"`
 	VcnOCID              string `yaml:"vcn"`
 }
