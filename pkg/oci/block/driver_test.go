@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package driver
+package block
 
 import (
 	"os"
@@ -75,6 +75,15 @@ func TestGetConfigPath(t *testing.T) {
 				t.Errorf("GetDriverDirectory() = %q ; wanted %q", result, tc.expected)
 			}
 		})
+	}
+}
 
+func TestClaimVolumeOCID(t *testing.T) {
+	volId := "abyhqljstzvo4buo3m3cqeiioavzho2e6zwnlcfffmgs5kjjwz36kqav5i2a"
+
+	block := OCIFlexvolumeDriver{}
+
+	if !block.Claim(volId) {
+		t.Error("Block driver not claiming", volId)
 	}
 }

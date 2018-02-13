@@ -19,13 +19,13 @@ import (
 	"testing"
 
 	"github.com/oracle/oci-flexvolume-driver/pkg/flexvolume"
-	"github.com/oracle/oci-flexvolume-driver/pkg/oci/driver"
+	"github.com/oracle/oci-flexvolume-driver/pkg/oci/block"
 )
 
 // TestMountInconsistentFileSystems checks an error is returned if the attached
 // disk has an existing filesytem that differs from specified filesystem.
 func TestMountInconsistentFileSystems(t *testing.T) {
-	d := &driver.OCIFlexvolumeDriver{}
+	d := &block.OCIFlexvolumeDriver{}
 	opts := flexvolume.Options{
 		"kubernetes.io/fsType":         "ext4",
 		"kubernetes.io/pvOrVolumeName": fw.VolumeName,

@@ -19,12 +19,12 @@ import (
 	"testing"
 
 	"github.com/oracle/oci-flexvolume-driver/pkg/flexvolume"
-	"github.com/oracle/oci-flexvolume-driver/pkg/oci/driver"
+	"github.com/oracle/oci-flexvolume-driver/pkg/oci/block"
 )
 
 // TestBasic tests the basic attach, mount, unmount, detach flow.
 func TestBasic(t *testing.T) {
-	d := &driver.OCIFlexvolumeDriver{}
+	d := &block.OCIFlexvolumeDriver{}
 	opts := flexvolume.Options{
 		"kubernetes.io/fsType":         "ext4",
 		"kubernetes.io/pvOrVolumeName": fw.VolumeName,
