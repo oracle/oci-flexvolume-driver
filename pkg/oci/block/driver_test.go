@@ -41,6 +41,6 @@ func TestClaimVolumeOCID(t *testing.T) {
 	block := OCIFlexvolumeDriver{}
 
 	if !block.Claim(volId) {
-		t.Error("Block driver not claiming %s", volId)
+		t.Error("Block driver not claiming", volId)
 	}
 }
