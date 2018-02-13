@@ -164,23 +164,6 @@ func Init(drivers []Driver) DriverStatus {
 	return Succeed("Init success")
 }
 
-func Attach(drivers []Driver, opts Options, nodeName string) DriverStatus {
-	volumeId, ok := opts[OptionKeypvOrVolumeName]
-	if !ok {
-		return Fail("key '%s' not found in attach options",
-			OptionKeypvOrVolumeName)
-	}
-	return ClaimVolume(volumeId, drivers).Attach(opts, nodeName)
-}
-
-/*	Detach(mountDevice, nodeName string) DriverStatus
-	WaitForAttach(mountDevice string, opts Options) DriverStatus
-	IsAttached(opts Options, nodeName string) DriverStatus
-	MountDevice(mountDir, mountDevice string, opts Options) DriverStatus
-	UnmountDevice(mountDevice string) DriverStatus
-	Mount(mountDir string, opts Options) DriverStatus
-	Unmount(mountDir string) DriverStatus*/
-
 // ExecDriver executes the appropriate FlexvolumeDriver command based on
 // recieved call-out.
 func ExecDriver(drivers []Driver, args []string) DriverStatus {
@@ -211,11 +194,21 @@ func ExecDriver(drivers []Driver, args []string) DriverStatus {
 		opts, err := processOpts(args[2])
 		if err != nil {
 			return Fail(err.Error())
-		} else {
-			nodeName := args[3]
-
-			return Attach(drivers, opts, nodeName)
 		}
+		nodeName := args[3]
+
+		volumeId, ok := opts[OptionKeypvOrVolumeName]
+		if !ok {
+			return Fail("key '%s' not found in attach options",
+				OptionKeypvOrVolumeName)
+		}
+
+		driver := ClaimVolume(volumeId, drivers)
+		if driver == nil {
+			return Fail("Unable to find flexdriver for volume id '%s'", volumeId)
+		}
+
+		return driver.Attach(opts, nodeName)
 
 	// <driver executable> detach <mount device> <node name>
 	case "detach":
@@ -226,7 +219,7 @@ func ExecDriver(drivers []Driver, args []string) DriverStatus {
 		volumeName := args[2]
 		nodeName := args[3]
 		driver := ClaimVolume(volumeName, drivers)
-		if driver != nil {
+		if driver == nil {
 			return Fail("Unable to find flexdriver for volume id '%s'", volumeName)
 		}
 		return driver.Detach(volumeName, nodeName)
@@ -249,7 +242,7 @@ func ExecDriver(drivers []Driver, args []string) DriverStatus {
 		}
 
 		driver := ClaimVolume(volumeId, drivers)
-		if driver != nil {
+		if driver == nil {
 			return Fail("Unable to find flexdriver for volume id '%s'", volumeId)
 		}
 
@@ -274,7 +267,7 @@ func ExecDriver(drivers []Driver, args []string) DriverStatus {
 
 		nodeName := args[3]
 		driver := ClaimVolume(volumeId, drivers)
-		if driver != nil {
+		if driver == nil {
 			return Fail("Unable to find flexdriver for volume id '%s'", volumeId)
 		}
 
@@ -301,7 +294,7 @@ func ExecDriver(drivers []Driver, args []string) DriverStatus {
 		}
 
 		driver := ClaimVolume(volumeId, drivers)
-		if driver != nil {
+		if driver == nil {
 			return Fail("Unable to find flexdriver for volume id '%s'", volumeId)
 		}
 
@@ -320,7 +313,7 @@ func ExecDriver(drivers []Driver, args []string) DriverStatus {
 		volumeId := parts[len(parts)-1]
 
 		driver := ClaimVolume(volumeId, drivers)
-		if driver != nil {
+		if driver == nil {
 			return Fail("Unable to find flexdriver for volume id '%s'", volumeId)
 		}
 
@@ -346,7 +339,7 @@ func ExecDriver(drivers []Driver, args []string) DriverStatus {
 		}
 
 		driver := ClaimVolume(volumeId, drivers)
-		if driver != nil {
+		if driver == nil {
 			return Fail("Unable to find flexdriver for volume id '%s'", volumeId)
 		}
 
@@ -365,7 +358,7 @@ func ExecDriver(drivers []Driver, args []string) DriverStatus {
 		volumeId := parts[len(parts)-1]
 
 		driver := ClaimVolume(volumeId, drivers)
-		if driver != nil {
+		if driver == nil {
 			return Fail("Unable to find flexdriver for volume id '%s'", volumeId)
 		}
 
