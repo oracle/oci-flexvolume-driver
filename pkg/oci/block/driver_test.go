@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package driver
+package block
 
 import "testing"
 
@@ -32,5 +32,15 @@ func TestDeriveVolumeOCID(t *testing.T) {
 		if result != tt.expected {
 			t.Errorf("Failed to derive OCID. Expected %s got %s", tt.expected, result)
 		}
+	}
+}
+
+func TestClaimVolumeOCID(t *testing.T) {
+	volId := "abyhqljstzvo4buo3m3cqeiioavzho2e6zwnlcfffmgs5kjjwz36kqav5i2a"
+
+	block := OCIFlexvolumeDriver{}
+
+	if !block.Claim(volId) {
+		t.Error("Block driver not claiming", volId)
 	}
 }
