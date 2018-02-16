@@ -22,6 +22,7 @@ import (
 	"github.com/oracle/oci-flexvolume-driver/pkg/flexvolume"
 	"github.com/oracle/oci-flexvolume-driver/pkg/oci/block"
 	"github.com/oracle/oci-flexvolume-driver/pkg/oci/common"
+	"github.com/oracle/oci-flexvolume-driver/pkg/oci/filestorage"
 )
 
 // version/build is set at build time to the version of the driver being built.
@@ -51,7 +52,10 @@ func main() {
 
 	log.Printf("OCI FlexVolume Driver version: %s (%s)", version, build)
 
-	status := flexvolume.ExecDriver([]flexvolume.Driver{&block.OCIFlexvolumeDriver{}}, os.Args)
+	status := flexvolume.ExecDriver([]flexvolume.Driver{
+		&block.OCIFlexvolumeDriver{},
+		&filestorage.OCIFilestorageDriver{},
+	}, os.Args)
 
 	flexvolume.ExitWithResult(status)
 }
