@@ -10,7 +10,7 @@ build:
 
     - script:
       name: check boilerplate
-      code: ./hack/verify-boilerplate.sh
+      code: make check-boilerplate
 
     - script:
       name: go fmt
