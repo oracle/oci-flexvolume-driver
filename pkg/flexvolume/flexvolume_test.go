@@ -19,7 +19,7 @@ import (
 )
 
 const defaultTestOps = `{"kubernetes.io/fsType":"ext4","kubernetes.io/readwrite":"rw","kubernetes.io/pvOrVolumeName":"mockvolumeid"}`
-const noVolIdTestOps = `{"kubernetes.io/fsType":"ext4","kubernetes.io/readwrite":"rw"}`
+const noVolIDTestOps = `{"kubernetes.io/fsType":"ext4","kubernetes.io/readwrite":"rw"}`
 
 func assertSuccess(t *testing.T, expected DriverStatus, status DriverStatus) {
 	if status != expected {
@@ -57,7 +57,7 @@ func TestGetVolumeName(t *testing.T) {
 
 func TestNoVolumeIDDispatch(t *testing.T) {
 	status := ExecDriver([]Driver{&mockFlexvolumeDriver{}},
-		[]string{"oci", "attach", noVolIdTestOps, "nodeName"})
+		[]string{"oci", "attach", noVolIDTestOps, "nodeName"})
 
 	expected := DriverStatus{
 		Status:  "Failure",

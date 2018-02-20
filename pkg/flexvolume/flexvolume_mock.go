@@ -16,7 +16,7 @@ package flexvolume
 
 type mockFlexvolumeDriver struct{}
 
-func (driver mockFlexvolumeDriver) Claim(volumeId string) bool {
+func (driver mockFlexvolumeDriver) Claim(volumeID string) bool {
 	return true
 }
 

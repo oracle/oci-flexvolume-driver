@@ -61,6 +61,7 @@ func GetConfigPath() string {
 	return filepath.Join(GetDriverDirectory(), "config.yaml")
 }
 
+// Name returns the name of the driver
 func (d OCIFlexvolumeDriver) Name() string {
 	return "oci-block"
 }
@@ -85,12 +86,12 @@ func (d OCIFlexvolumeDriver) Init() error {
 // This is a little tricky as for backwards compat we
 // use just the string after the ocid1.volume.oc1.%s.%s" part.
 // so if the id doesn't start with ocid at all we
-func (d OCIFlexvolumeDriver) Claim(volumeId string) bool {
-	if strings.HasPrefix(volumeId, ocidVolPrefix) {
+func (d OCIFlexvolumeDriver) Claim(volumeID string) bool {
+	if strings.HasPrefix(volumeID, ocidVolPrefix) {
 		return true
 	}
 	// This handles the truncated ocid for backwards compat
-	if !strings.HasPrefix(volumeId, ocidPrefix) {
+	if !strings.HasPrefix(volumeID, ocidPrefix) {
 		return true
 	}
 	return false

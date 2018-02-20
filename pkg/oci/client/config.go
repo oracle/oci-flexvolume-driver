@@ -51,6 +51,7 @@ type AuthConfig struct {
 	VcnOCID              string `yaml:"vcn"`
 }
 
+// StorageConfig hold the filesystem storage config mounttargets for each AD
 type StorageConfig struct {
 	MountTargetAd1OCID string `yaml:"mounttargetAD1ID"`
 	MountTargetAd2OCID string `yaml:"mounttargetAD2ID"`
