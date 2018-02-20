@@ -36,11 +36,11 @@ func TestDeriveVolumeOCID(t *testing.T) {
 }
 
 func TestClaimVolumeOCID(t *testing.T) {
-	volId := "abyhqljstzvo4buo3m3cqeiioavzho2e6zwnlcfffmgs5kjjwz36kqav5i2a"
+	volID := "abyhqljstzvo4buo3m3cqeiioavzho2e6zwnlcfffmgs5kjjwz36kqav5i2a"
 
 	block := OCIFlexvolumeDriver{}
 
-	if !block.Claim(volId) {
-		t.Error("Block driver not claiming", volId)
+	if !block.Claim(volID) {
+		t.Error("Block driver not claiming", volID)
 	}
 }

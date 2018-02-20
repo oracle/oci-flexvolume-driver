@@ -35,6 +35,7 @@ const (
 // OCIFilestorageDriver implements the flexvolume.Driver interface for OCI.
 type OCIFilestorageDriver struct{}
 
+// Name returns the name of the driver
 func (d OCIFilestorageDriver) Name() string {
 	return "oci-filestorage"
 }
@@ -56,8 +57,8 @@ func (d OCIFilestorageDriver) Init() error {
 }
 
 // Claim returns true if this driver handles this ocid
-func (d OCIFilestorageDriver) Claim(volumeId string) bool {
-	if strings.HasPrefix(volumeId, ocidFilestroagePrefix) {
+func (d OCIFilestorageDriver) Claim(volumeID string) bool {
+	if strings.HasPrefix(volumeID, ocidFilestroagePrefix) {
 		return true
 	}
 	return false
