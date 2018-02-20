@@ -231,7 +231,7 @@ func (d OCIFilestorageDriver) MountDevice(mountDir, mountDevice string, opts fle
 	//mountOptions := volume.JoinMountOptions(b.mountOptions, options)
 	err = mounter.Mount(source, mountDir, "nfs", options)
 	if err != nil {
-		log.Printf("Failed to mount:%v")
+		log.Printf("Failed to mount:%s on %s", source, mountDir)
 		return flexvolume.Fail(err.Error())
 	}
 
@@ -245,11 +245,11 @@ func (d OCIFilestorageDriver) UnmountDevice(mountPath string) flexvolume.DriverS
 
 	err := mounter.Unmount(mountPath)
 	if err != nil {
-		log.Printf("Failed to unmount:%v")
+		log.Printf("Failed to unmount:%s", mountPath)
 		return flexvolume.Fail(err.Error())
 	}
 
-	return flexvolume.Succeed(fmt.Sprintf("UnmountDevice:", mountPath))
+	return flexvolume.Succeed(fmt.Sprintf("UnmountDevice:%s", mountPath))
 }
 
 // Mount is unimplemented as we use the --enable-controller-attach-detach flow

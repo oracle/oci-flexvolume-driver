@@ -1,4 +1,5 @@
 // Copyright 2017 Oracle and/or its affiliates. All rights reserved.
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -555,7 +556,7 @@ func (client *client) AttachFileSystemToMountTarget(fileSystem *ffsw.FileSystem,
 	}
 	if exportSummary != nil {
 		log.Printf("Found export %s", *exportSummary.Id)
-		log.Printf("FileSystem:%s already mounted on MountTarget %s at %s", *fileSystem.Id, mountTarget.Id, path)
+		log.Printf("FileSystem:%s already mounted on MountTarget %s at %s", *fileSystem.Id, *mountTarget.Id, path)
 		return nil
 	}
 	response, err := func() (ffsw.CreateExportResponse, error) {
@@ -573,7 +574,7 @@ func (client *client) AttachFileSystemToMountTarget(fileSystem *ffsw.FileSystem,
 	if err != nil {
 		return err
 	}
-	log.Printf("Filesystem Exported %s at %s(%s)", *fileSystem.Id, mountTarget.Id, path, *response.Export.Id)
+	log.Printf("Filesystem Exported %s at %s(%s) %s", *fileSystem.Id, *mountTarget.Id, path, *response.Export.Id)
 
 	export := response.Export
 
@@ -650,13 +651,16 @@ func (client *client) DetachFileSystemToMountTarget(fileSystem *ffsw.FileSystem,
 
 func (client *client) GetMountTargetIPS(mountTarget *ffsw.MountTarget) ([]core.PrivateIp, error) {
 	var privateIps []core.PrivateIp
-	for _, PublicIpId := range mountTarget.PrivateIpIds {
-		ctx, cancel := context.WithTimeout(client.ctx, client.timeout)
-		defer cancel()
-		response, err := client.network.GetPrivateIp(ctx, core.GetPrivateIpRequest{
-			PrivateIpId: &PublicIpId,
-		})
+	for _, PrivateIpId := range mountTarget.PrivateIpIds {
+		response, err := func() (core.GetPrivateIpResponse, error) {
+			ctx, cancel := context.WithTimeout(client.ctx, client.timeout)
+			defer cancel()
+			return client.network.GetPrivateIp(ctx, core.GetPrivateIpRequest{
+				PrivateIpId: &PrivateIpId,
+			})
+		}()
 		if err != nil {
+			log.Printf("GetMountTargetIPS failed to get private ip for %s", PrivateIpId)
 			return nil, err
 		}
 		privateIps = append(privateIps, response.PrivateIp)
