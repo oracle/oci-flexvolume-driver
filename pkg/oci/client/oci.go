@@ -251,14 +251,14 @@ func (c *client) findInstanceByNodeNameIsVnic(cache *cache.OCICache, nodeName st
 						return c.network.GetVnic(ctx, vnicRequest)
 					}()
 					if err != nil {
-						log.Printf("Error getting Vnic for attachment: %s(%v)", *attachment.Id, err)
+						log.Printf("Error getting Vnic for attachment: %s(%v)", attachment, err)
 						continue
 					}
 					vnic = &vnicResponse.Vnic
 					cache.SetVnic(*attachment.VnicId, vnic)
 				}
-				if *vnic.PublicIp == nodeName ||
-					(*vnic.HostnameLabel != "" && strings.HasPrefix(nodeName, *vnic.HostnameLabel)) {
+				if (vnic.PublicIp != nil && *vnic.PublicIp == nodeName) ||
+					(vnic.HostnameLabel != nil && (*vnic.HostnameLabel != "" && strings.HasPrefix(nodeName, *vnic.HostnameLabel))) {
 					instanceRequest := core.GetInstanceRequest{
 						InstanceId: attachment.InstanceId,
 					}
@@ -268,7 +268,7 @@ func (c *client) findInstanceByNodeNameIsVnic(cache *cache.OCICache, nodeName st
 						return c.compute.GetInstance(ctx, instanceRequest)
 					}()
 					if err != nil {
-						log.Printf("Error getting instance for attachment: %s", *attachment.InstanceId)
+						log.Printf("Error getting instance for attachment: %s", attachment)
 						return nil, err
 					}
 					instance := instanceResponse.Instance
@@ -344,6 +344,7 @@ func getCacheDirectory() string {
 // GetInstanceByNodeName retrieves the corresponding core.Instance or a
 // SearchError if no instance matching the node name is found.
 func (c *client) GetInstanceByNodeName(nodeName string) (*core.Instance, error) {
+	log.Printf("GetInstanceByNodeName:%s", nodeName)
 	ociCache, err := cache.Open(fmt.Sprintf("%s/%s", getCacheDirectory(), "nodenamecache.json"))
 	if err != nil {
 		return nil, err
