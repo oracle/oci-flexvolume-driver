@@ -257,7 +257,6 @@ func (c *client) findInstanceByNodeNameIsVnic(cache *cache.OCICache, nodeName st
 					vnic = &vnicResponse.Vnic
 					cache.SetVnic(*attachment.VnicId, vnic)
 				}
-				log.Printf("Checking vnic:%s", *vnic)
 				if (vnic.PublicIp != nil && *vnic.PublicIp == nodeName) ||
 					(vnic.HostnameLabel != nil && (*vnic.HostnameLabel != "" && strings.HasPrefix(nodeName, *vnic.HostnameLabel))) {
 					instanceRequest := core.GetInstanceRequest{
