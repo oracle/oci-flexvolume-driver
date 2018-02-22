@@ -18,7 +18,7 @@ import (
 	"os"
 )
 
-// GetDriverDirectory gets the ath for the flexvolume driver either from the
+// GetDriverDirectory gets the path for the flexvolume driver either from the
 // env or default.
 func GetDriverDirectory() string {
 	// TODO(apryde): Document this ENV var.

@@ -121,12 +121,12 @@ func deriveVolumeOCID(regionKey string, volumeName string) string {
 func (d OCIFlexvolumeDriver) Attach(opts flexvolume.Options, nodeName string) flexvolume.DriverStatus {
 	c, err := client.New(common.GetConfigPath())
 	if err != nil {
-		return flexvolume.Fail(err.Error())
+		return flexvolume.Failf(err.Error())
 	}
 
 	instance, err := c.GetInstanceByNodeName(nodeName)
 	if err != nil {
-		return flexvolume.Fail(err.Error())
+		return flexvolume.Failf(err.Error())
 	}
 
 	volumeOCID := deriveVolumeOCID(c.GetConfig().Auth.RegionKey, opts["kubernetes.io/pvOrVolumeName"])
@@ -137,29 +137,29 @@ func (d OCIFlexvolumeDriver) Attach(opts flexvolume.Options, nodeName string) fl
 	if err != nil {
 		if statusCode != 409 {
 			log.Printf("AttachVolume: %+v", err)
-			return flexvolume.Fail(err.Error())
+			return flexvolume.Failf(err.Error())
 		}
 		// If we get a 409 conflict response when attaching we
 		// presume that the device is already attached.
 		log.Printf("Attach(): Volume %q already attached.", volumeOCID)
 		attachment, err = c.FindVolumeAttachment(volumeOCID)
 		if err != nil {
-			return flexvolume.Fail(err.Error())
+			return flexvolume.Failf(err.Error())
 		}
 		if *attachment.GetInstanceId() != *instance.Id {
-			return flexvolume.Fail("Already attached to instance: ", *instance.Id)
+			return flexvolume.Failf("Already attached to instance: ", *instance.Id)
 		}
 	}
 
 	attachment, err = c.WaitForVolumeAttached(*attachment.GetId())
 	if err != nil {
-		return flexvolume.Fail(err.Error())
+		return flexvolume.Failf(err.Error())
 	}
 
 	log.Printf("attach: %s attached", *attachment.GetId())
 	iscsiAttachment, ok := attachment.(core.IScsiVolumeAttachment)
 	if !ok {
-		return flexvolume.Fail("Only ISCSI volume attachments are currently supported")
+		return flexvolume.Failf("Only ISCSI volume attachments are currently supported")
 	}
 
 	return flexvolume.DriverStatus{
@@ -172,25 +172,25 @@ func (d OCIFlexvolumeDriver) Attach(opts flexvolume.Options, nodeName string) fl
 func (d OCIFlexvolumeDriver) Detach(pvOrVolumeName, nodeName string) flexvolume.DriverStatus {
 	c, err := client.New(common.GetConfigPath())
 	if err != nil {
-		return flexvolume.Fail(err.Error())
+		return flexvolume.Failf(err.Error())
 	}
 
 	volumeOCID := deriveVolumeOCID(c.GetConfig().Auth.RegionKey, pvOrVolumeName)
 	attachment, err := c.FindVolumeAttachment(volumeOCID)
 	if err != nil {
-		return flexvolume.Fail(err.Error())
+		return flexvolume.Failf(err.Error())
 	}
 
 	err = c.DetachVolume(*attachment.GetId())
 	if err != nil {
-		return flexvolume.Fail(err.Error())
+		return flexvolume.Failf(err.Error())
 	}
 
 	err = c.WaitForVolumeDetached(*attachment.GetId())
 	if err != nil {
-		return flexvolume.Fail(err.Error())
+		return flexvolume.Failf(err.Error())
 	}
-	return flexvolume.Succeed("Detach %s from %s", volumeOCID, attachment.GetInstanceId)
+	return flexvolume.Succeedf("Detach %s from %s", volumeOCID, attachment.GetInstanceId)
 }
 
 // WaitForAttach does nothing but return true as we have done the
@@ -209,7 +209,7 @@ func (d OCIFlexvolumeDriver) WaitForAttach(mountDevice string, _ flexvolume.Opti
 func (d OCIFlexvolumeDriver) IsAttached(opts flexvolume.Options, nodeName string) flexvolume.DriverStatus {
 	c, err := client.New(common.GetConfigPath())
 	if err != nil {
-		return flexvolume.Fail(err.Error())
+		return flexvolume.Failf(err.Error())
 	}
 
 	volumeOCID := deriveVolumeOCID(c.GetConfig().Auth.RegionKey, opts["kubernetes.io/pvOrVolumeName"])
@@ -235,27 +235,27 @@ func (d OCIFlexvolumeDriver) IsAttached(opts flexvolume.Options, nodeName string
 func (d OCIFlexvolumeDriver) MountDevice(mountDir, mountDevice string, opts flexvolume.Options) flexvolume.DriverStatus {
 	iSCSIMounter, err := iscsi.NewFromDevicePath(mountDevice)
 	if err != nil {
-		return flexvolume.Fail(err.Error())
+		return flexvolume.Failf(err.Error())
 	}
 
 	if isMounted, oErr := iSCSIMounter.DeviceOpened(mountDevice); oErr != nil {
-		return flexvolume.Fail(oErr.Error())
+		return flexvolume.Failf(oErr.Error())
 	} else if isMounted {
-		return flexvolume.Succeed("Device already mounted. Nothing to do.")
+		return flexvolume.Succeedf("Device already mounted. Nothing to do.")
 	}
 
 	if err = iSCSIMounter.AddToDB(); err != nil {
-		return flexvolume.Fail(err.Error())
+		return flexvolume.Failf(err.Error())
 	}
 	if err = iSCSIMounter.SetAutomaticLogin(); err != nil {
-		return flexvolume.Fail(err.Error())
+		return flexvolume.Failf(err.Error())
 	}
 	if err = iSCSIMounter.Login(); err != nil {
-		return flexvolume.Fail(err.Error())
+		return flexvolume.Failf(err.Error())
 	}
 
 	if !waitForPathToExist(mountDevice, 20) {
-		return flexvolume.Fail("Failed waiting for device to exist: ", mountDevice)
+		return flexvolume.Failf("Failed waiting for device to exist: ", mountDevice)
 	}
 
 	options := []string{}
@@ -264,10 +264,10 @@ func (d OCIFlexvolumeDriver) MountDevice(mountDir, mountDevice string, opts flex
 	}
 	err = iSCSIMounter.FormatAndMount(mountDevice, mountDir, opts[flexvolume.OptionFSType], options)
 	if err != nil {
-		return flexvolume.Fail(err.Error())
+		return flexvolume.Failf(err.Error())
 	}
 
-	return flexvolume.Succeed("MountDevice")
+	return flexvolume.Succeedf("MountDevice")
 }
 
 // UnmountDevice unmounts the disk, logs out the iscsi target, and deletes the
@@ -276,32 +276,32 @@ func (d OCIFlexvolumeDriver) UnmountDevice(mountPath string) flexvolume.DriverSt
 	iSCSIMounter, err := iscsi.NewFromMountPointPath(mountPath)
 	if err != nil {
 		if err == iscsi.ErrMountPointNotFound {
-			return flexvolume.Succeed("Mount point not found. Nothing to do.")
+			return flexvolume.Succeedf("Mount point not found. Nothing to do.")
 		}
-		return flexvolume.Fail(err.Error())
+		return flexvolume.Failf(err.Error())
 	}
 
 	if err = iSCSIMounter.UnmountPath(mountPath); err != nil {
-		return flexvolume.Fail(err.Error())
+		return flexvolume.Failf(err.Error())
 	}
 	if err = iSCSIMounter.Logout(); err != nil {
-		return flexvolume.Fail(err.Error())
+		return flexvolume.Failf(err.Error())
 	}
 	if err = iSCSIMounter.RemoveFromDB(); err != nil {
-		return flexvolume.Fail(err.Error())
+		return flexvolume.Failf(err.Error())
 	}
 
-	return flexvolume.Succeed("UnmountDevice")
+	return flexvolume.Succeedf("UnmountDevice")
 }
 
 // Mount is unimplemented as we use the --enable-controller-attach-detach flow
 // and as such mount the drive in MountDevice().
 func (d OCIFlexvolumeDriver) Mount(mountDir string, opts flexvolume.Options) flexvolume.DriverStatus {
-	return flexvolume.NotSupported("Mount")
+	return flexvolume.NotSupportedf("Mount:%s", mountDir)
 }
 
 // Unmount is unimplemented as we use the --enable-controller-attach-detach flow
 // and as such unmount the drive in UnmountDevice().
 func (d OCIFlexvolumeDriver) Unmount(mountDir string) flexvolume.DriverStatus {
-	return flexvolume.NotSupported("Unmount")
+	return flexvolume.NotSupportedf("Unmount:%s", mountDir)
 }

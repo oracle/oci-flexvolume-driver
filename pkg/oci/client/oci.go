@@ -16,8 +16,14 @@ package client
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"net"
+	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -76,13 +82,14 @@ type Interface interface {
 	// DetachFileSystemToMountTarget
 	DetachFileSystemToMountTarget(fileSystem *filestorage.FileSystem, mountTarget *filestorage.MountTarget, path string) error
 
-	// GetMountTargetIPS
+	// GetMountTargetIPS gets the mount target private ip addresses
 	GetMountTargetIPS(mountTarget *filestorage.MountTarget) ([]core.PrivateIp, error)
 
+	// This checks to see if the filesystem is attached to the mounttarget
 	IsFileSystemAttached(fileSystem *filestorage.FileSystem, mountTarget *filestorage.MountTarget, path string) (bool, error)
 }
 
-// client extends a barmetal.Client.
+// client contains all the clients,config and the default context and timeout
 type client struct {
 	compute     *core.ComputeClient
 	network     *core.VirtualNetworkClient
@@ -676,7 +683,7 @@ func (c *client) GetMountTargetIPS(mountTarget *filestorage.MountTarget) ([]core
 			})
 		}()
 		if err != nil {
-			log.Printf("GetMountTargetIPS failed to get private ip for %s", PrivateIPID)
+			log.Printf("GetMountTargetIPS failed to get private IP for %s", PrivateIPID)
 			return nil, err
 		}
 		privateIps = append(privateIps, response.PrivateIp)
@@ -734,4 +741,3 @@ func configureCustomTransport(baseClient *common.BaseClient) error {
 	httpClient.Transport = transport
 	return nil
 }
-
