@@ -76,13 +76,14 @@ type Interface interface {
 	// DetachFileSystemToMountTarget
 	DetachFileSystemToMountTarget(fileSystem *ffsw.FileSystem, mountTarget *ffsw.MountTarget, path string) error
 
-	// GetMountTargetIPS
-	GetMountTargetIPS(mountTarget *ffsw.MountTarget) ([]core.PrivateIp, error)
+	// GetMountTargetIPs gets the mount target private ip addresses
+	GetMountTargetIPs(mountTarget *ffsw.MountTarget) ([]core.PrivateIp, error)
 
+	// This checks to see if the filesystem is attached to the mounttarget
 	IsFileSystemAttached(fileSystem *ffsw.FileSystem, mountTarget *ffsw.MountTarget, path string) (bool, error)
 }
 
-// client extends a barmetal.Client.
+// client contains all the clients,config and the default context and timeout
 type client struct {
 	compute *core.ComputeClient
 	network *core.VirtualNetworkClient
@@ -649,7 +650,7 @@ func (c *client) DetachFileSystemToMountTarget(fileSystem *ffsw.FileSystem, moun
 	return nil
 }
 
-func (c *client) GetMountTargetIPS(mountTarget *ffsw.MountTarget) ([]core.PrivateIp, error) {
+func (c *client) GetMountTargetIPs(mountTarget *ffsw.MountTarget) ([]core.PrivateIp, error) {
 	var privateIps []core.PrivateIp
 	for _, PrivateIPID := range mountTarget.PrivateIpIds {
 		response, err := func() (core.GetPrivateIpResponse, error) {
@@ -660,7 +661,7 @@ func (c *client) GetMountTargetIPS(mountTarget *ffsw.MountTarget) ([]core.Privat
 			})
 		}()
 		if err != nil {
-			log.Printf("GetMountTargetIPS failed to get private ip for %s", PrivateIPID)
+			log.Printf("GetMountTargetIPS failed to get private IP for %s", PrivateIPID)
 			return nil, err
 		}
 		privateIps = append(privateIps, response.PrivateIp)

@@ -29,33 +29,33 @@ func (driver mockFlexvolumeDriver) Init() error {
 }
 
 func (driver mockFlexvolumeDriver) Attach(opts Options, nodeName string) DriverStatus {
-	return NotSupported("")
+	return NotSupportedf("")
 }
 
 func (driver mockFlexvolumeDriver) Detach(mountDevice, nodeName string) DriverStatus {
-	return Succeed("")
+	return Succeedf("")
 }
 
 func (driver mockFlexvolumeDriver) WaitForAttach(mountDevice string, opts Options) DriverStatus {
-	return Succeed("")
+	return Succeedf("")
 }
 
 func (driver mockFlexvolumeDriver) IsAttached(opts Options, nodeName string) DriverStatus {
-	return Succeed("")
+	return Succeedf("")
 }
 
 func (driver mockFlexvolumeDriver) MountDevice(mountDir, mountDevice string, opts Options) DriverStatus {
-	return Succeed("")
+	return Succeedf("")
 }
 
 func (driver mockFlexvolumeDriver) UnmountDevice(mountDevice string) DriverStatus {
-	return Succeed("")
+	return Succeedf("")
 }
 
 func (driver mockFlexvolumeDriver) Mount(mountDir string, opts Options) DriverStatus {
-	return Succeed("")
+	return Succeedf("")
 }
 
 func (driver mockFlexvolumeDriver) Unmount(mountDir string) DriverStatus {
-	return Succeed("")
+	return Succeedf("")
 }
