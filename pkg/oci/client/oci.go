@@ -26,6 +26,7 @@ import (
 
 	"github.com/oracle/oci-go-sdk/common"
 	"github.com/oracle/oci-go-sdk/core"
+	"github.com/oracle/oci-go-sdk/ffsw"
 )
 
 const (
@@ -38,11 +39,11 @@ const (
 type Interface interface {
 	// FindVolumeAttachment searches for a volume attachment in either the state
 	// ATTACHING or ATTACHED and returns the first volume attachment found.
-	FindVolumeAttachment(volumeId string) (core.VolumeAttachment, error)
+	FindVolumeAttachment(volumeID string) (core.VolumeAttachment, error)
 
 	// WaitForVolumeAttached polls waiting for a OCI block volume to be in the
 	// ATTACHED state.
-	WaitForVolumeAttached(volumeAttachmentId string) (core.VolumeAttachment, error)
+	WaitForVolumeAttached(volumeAttachmentID string) (core.VolumeAttachment, error)
 
 	// GetInstanceByNodeName retrieves the oci.Instance corresponding or
 	// a SearchError if no instance matching the node name is found.
@@ -50,24 +51,43 @@ type Interface interface {
 
 	// AttachVolume attaches a block storage volume to the specified instance.
 	// See https://docs.us-phoenix-1.oraclecloud.com/api/#/en/iaas/20160918/VolumeAttachment/AttachVolume
-	AttachVolume(instanceId, volumeId string) (core.VolumeAttachment, int, error)
+	AttachVolume(instanceID, volumeID string) (core.VolumeAttachment, int, error)
 
 	// DetachVolume detaches a storage volume from the specified instance.
 	// See: https://docs.us-phoenix-1.oraclecloud.com/api/#/en/iaas/20160918/Volume/DetachVolume
-	DetachVolume(volumeAttachmentId string) error
+	DetachVolume(volumeAttachmentID string) error
 
 	// WaitForVolumeDetached polls waiting for a OCI block volume to be in the
 	// DETACHED state.
-	WaitForVolumeDetached(volumeAttachmentId string) error
+	WaitForVolumeDetached(volumeAttachmentID string) error
 
 	// GetConfig returns the Config associated with the OCI API client.
 	GetConfig() *Config
+
+	// GetMountTargetForAD returns a mount target for a given AD
+	GetMountTargetForAD(AvailabilityDomain string) (*ffsw.MountTarget, error)
+
+	// GetFilesystem
+	GetFileSystem(ocid string) (*ffsw.FileSystem, error)
+
+	// AttachFileSystemToMountTarget
+	AttachFileSystemToMountTarget(fileSystem *ffsw.FileSystem, mountTarget *ffsw.MountTarget, path string) error
+
+	// DetachFileSystemToMountTarget
+	DetachFileSystemToMountTarget(fileSystem *ffsw.FileSystem, mountTarget *ffsw.MountTarget, path string) error
+
+	// GetMountTargetIPs gets the mount target private ip addresses
+	GetMountTargetIPs(mountTarget *ffsw.MountTarget) ([]core.PrivateIp, error)
+
+	// This checks to see if the filesystem is attached to the mounttarget
+	IsFileSystemAttached(fileSystem *ffsw.FileSystem, mountTarget *ffsw.MountTarget, path string) (bool, error)
 }
 
-// client extends a barmetal.Client.
+// client contains all the clients,config and the default context and timeout
 type client struct {
 	compute *core.ComputeClient
 	network *core.VirtualNetworkClient
+	ffsw    *ffsw.FileStorageClient
 	config  *Config
 	ctx     context.Context
 	timeout time.Duration
@@ -95,9 +115,14 @@ func New(configPath string) (Interface, error) {
 	if err != nil {
 		return nil, err
 	}
+	filesystemStorageClient, err := ffsw.NewFileStorageClientWithConfigurationProvider(configProvider)
+	if err != nil {
+		return nil, err
+	}
 	return &client{
 		compute: &computeClient,
 		network: &virtualNetworkClient,
+		ffsw:    &filesystemStorageClient,
 		config:  config,
 		ctx:     context.Background(),
 		timeout: time.Minute}, nil
@@ -105,10 +130,10 @@ func New(configPath string) (Interface, error) {
 
 // WaitForVolumeAttached polls waiting for a OCI block volume to be in the
 // ATTACHED state.
-func (c *client) WaitForVolumeAttached(volumeAttachmentId string) (core.VolumeAttachment, error) {
+func (c *client) WaitForVolumeAttached(volumeAttachmentID string) (core.VolumeAttachment, error) {
 	// TODO: Replace with "k8s.io/apimachinery/pkg/util/wait".
 	request := core.GetVolumeAttachmentRequest{
-		VolumeAttachmentId: &volumeAttachmentId,
+		VolumeAttachmentId: &volumeAttachmentID,
 	}
 	for i := 0; i < ociMaxRetries; i++ {
 		r, err := func() (core.GetVolumeAttachmentResponse, error) {
@@ -135,13 +160,13 @@ func (c *client) WaitForVolumeAttached(volumeAttachmentId string) (core.VolumeAt
 
 // FindVolumeAttachment searches for a volume attachment in either the state of
 // ATTACHING or ATTACHED and returns the first volume attachment found.
-func (c *client) FindVolumeAttachment(volumeId string) (core.VolumeAttachment, error) {
+func (c *client) FindVolumeAttachment(volumeID string) (core.VolumeAttachment, error) {
 	var page *string
 	for {
 		request := core.ListVolumeAttachmentsRequest{
 			CompartmentId: &c.config.Auth.CompartmentOCID,
 			Page:          page,
-			VolumeId:      &volumeId,
+			VolumeId:      &volumeID,
 		}
 
 		r, err := func() (core.ListVolumeAttachmentsResponse, error) {
@@ -166,7 +191,7 @@ func (c *client) FindVolumeAttachment(volumeId string) (core.VolumeAttachment, e
 		}
 	}
 
-	return nil, fmt.Errorf("failed to find volume attachment for %q", volumeId)
+	return nil, fmt.Errorf("failed to find volume attachment for %q", volumeID)
 }
 
 func (c *client) getAllSubnetsForVNC() (*[]core.Subnet, error) {
@@ -364,11 +389,11 @@ func (c *client) GetInstanceByNodeName(nodeName string) (*core.Instance, error) 
 }
 
 // AttachVolume attaches a block storage volume to the specified instance.
-func (c *client) AttachVolume(instanceId, volumeId string) (core.VolumeAttachment, int, error) {
+func (c *client) AttachVolume(instanceID, volumeID string) (core.VolumeAttachment, int, error) {
 	request := core.AttachVolumeRequest{
 		AttachVolumeDetails: core.AttachIScsiVolumeDetails{
-			InstanceId: &instanceId,
-			VolumeId:   &volumeId,
+			InstanceId: &instanceID,
+			VolumeId:   &volumeID,
 		},
 	}
 	r, err := func() (core.AttachVolumeResponse, error) {
@@ -383,14 +408,15 @@ func (c *client) AttachVolume(instanceId, volumeId string) (core.VolumeAttachmen
 }
 
 // DetachVolume detaches a storage volume from the specified instance.
-func (c *client) DetachVolume(volumeAttachmentId string) error {
+func (c *client) DetachVolume(volumeAttachmentID string) error {
 	request := core.DetachVolumeRequest{
-		VolumeAttachmentId: &volumeAttachmentId,
+		VolumeAttachmentId: &volumeAttachmentID,
 	}
 	err := func() error {
 		ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
 		defer cancel()
-		return c.compute.DetachVolume(ctx, request)
+		_, err := c.compute.DetachVolume(ctx, request)
+		return err
 	}()
 	if err != nil {
 		return err
@@ -400,10 +426,10 @@ func (c *client) DetachVolume(volumeAttachmentId string) error {
 
 // WaitForVolumeDetached polls waiting for a OCI block volume to be in the
 // DETACHED state.
-func (c *client) WaitForVolumeDetached(volumeAttachmentId string) error {
+func (c *client) WaitForVolumeDetached(volumeAttachmentID string) error {
 	// TODO: Replace with "k8s.io/apimachinery/pkg/util/wait".
 	request := core.GetVolumeAttachmentRequest{
-		VolumeAttachmentId: &volumeAttachmentId,
+		VolumeAttachmentId: &volumeAttachmentID,
 	}
 	for i := 0; i < ociMaxRetries; i++ {
 		r, err := func() (core.GetVolumeAttachmentResponse, error) {
@@ -431,4 +457,215 @@ func (c *client) WaitForVolumeDetached(volumeAttachmentId string) error {
 // GetConfig returns the Config associated with the OCI API client.
 func (c *client) GetConfig() *Config {
 	return c.config
+}
+
+func (c *client) getMountTargetOCIDForAD(AvailabilityDomain string) *string {
+	if strings.HasSuffix(AvailabilityDomain, "AD-1") {
+		return &c.config.Storage.MountTargetAd1OCID
+	}
+	if strings.HasSuffix(AvailabilityDomain, "AD-2") {
+		return &c.config.Storage.MountTargetAd2OCID
+	}
+	if strings.HasSuffix(AvailabilityDomain, "AD-3") {
+		return &c.config.Storage.MountTargetAd3OCID
+	}
+	return nil
+}
+
+func (c *client) GetMountTargetForAD(AvailabilityDomain string) (*ffsw.MountTarget, error) {
+	mountTargetOCID := c.getMountTargetOCIDForAD(AvailabilityDomain)
+	if mountTargetOCID == nil {
+		return nil, fmt.Errorf("Unable to get mount target for AD:%s", AvailabilityDomain)
+	}
+	ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+	defer cancel()
+	response, err := c.ffsw.GetMountTarget(ctx, ffsw.GetMountTargetRequest{MountTargetId: mountTargetOCID})
+	if err != nil {
+		return nil, err
+	}
+	return &response.MountTarget, nil
+}
+
+func (c *client) GetFileSystem(ocid string) (*ffsw.FileSystem, error) {
+	ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+	defer cancel()
+	response, err := c.ffsw.GetFileSystem(ctx,
+		ffsw.GetFileSystemRequest{FileSystemId: common.String(ocid)})
+	if err != nil {
+		return nil, err
+	}
+	return &response.FileSystem, nil
+}
+
+func (c *client) listExports(fileSystem *ffsw.FileSystem,
+	mountTarget *ffsw.MountTarget) (*[]ffsw.ExportSummary, error) {
+	request := ffsw.ListExportsRequest{
+		CompartmentId: fileSystem.CompartmentId,
+		FileSystemId:  fileSystem.Id,
+		ExportSetId:   mountTarget.ExportSetId,
+	}
+
+	var exports []ffsw.ExportSummary
+	for {
+		response, err := func() (ffsw.ListExportsResponse, error) {
+			ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+			defer cancel()
+			return c.ffsw.ListExports(ctx, request)
+		}()
+		if err != nil {
+			return nil, err
+		}
+
+		exports = append(exports, response.Items...)
+		if response.OpcNextPage == nil {
+			break
+		}
+		request.Page = response.OpcNextPage
+	}
+	return &exports, nil
+}
+
+func (c *client) findExport(fileSystem *ffsw.FileSystem, mountTarget *ffsw.MountTarget, path string) (*ffsw.ExportSummary, error) {
+	exports, err := c.listExports(fileSystem, mountTarget)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, export := range *exports {
+		if *export.Path == path {
+			return &export, nil
+		}
+	}
+	return nil, nil
+}
+
+func (c *client) IsFileSystemAttached(fileSystem *ffsw.FileSystem, mountTarget *ffsw.MountTarget, path string) (bool, error) {
+	exportSummary, err := c.findExport(fileSystem, mountTarget, path)
+	if err != nil {
+		log.Printf("Error in IsAttached findexports")
+		return false, err
+	}
+	if exportSummary != nil {
+		return true, nil
+	}
+	return false, nil
+}
+
+func (c *client) AttachFileSystemToMountTarget(fileSystem *ffsw.FileSystem, mountTarget *ffsw.MountTarget, path string) error {
+	exportSummary, err := c.findExport(fileSystem, mountTarget, path)
+	if err != nil {
+		return err
+	}
+	if exportSummary != nil {
+		log.Printf("Found export %s", *exportSummary.Id)
+		log.Printf("FileSystem:%s already mounted on MountTarget %s at %s", *fileSystem.Id, *mountTarget.Id, path)
+		return nil
+	}
+	response, err := func() (ffsw.CreateExportResponse, error) {
+		ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+		defer cancel()
+		return c.ffsw.CreateExport(ctx,
+			ffsw.CreateExportRequest{
+				CreateExportDetails: ffsw.CreateExportDetails{
+					ExportSetId:  mountTarget.ExportSetId,
+					FileSystemId: fileSystem.Id,
+					Path:         common.String(path),
+				},
+			})
+	}()
+	if err != nil {
+		return err
+	}
+	log.Printf("Filesystem Exported %s at %s(%s) %s", *fileSystem.Id, *mountTarget.Id, path, *response.Export.Id)
+
+	export := response.Export
+
+	for {
+		log.Printf("Export State:(%s)%s", *export.Id, export.LifecycleState)
+		if export.LifecycleState == ffsw.ExportLifecycleStateActive {
+			break
+		}
+
+		response, err := func() (ffsw.GetExportResponse, error) {
+			ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+			defer cancel()
+			return c.ffsw.GetExport(ctx, ffsw.GetExportRequest{
+				ExportId: export.Id,
+			})
+		}()
+		if err != nil {
+			return err
+		}
+		export = response.Export
+		time.Sleep(time.Second * 1)
+	}
+
+	return nil
+}
+
+func (c *client) DetachFileSystemToMountTarget(fileSystem *ffsw.FileSystem, mountTarget *ffsw.MountTarget, path string) error {
+	export, err := c.findExport(fileSystem, mountTarget, path)
+	if err != nil {
+		return err
+	}
+	if export == nil {
+		log.Printf("FileSystem:%s not mounted on MountTarget %s at %s", *fileSystem.Id, *mountTarget.Id, path)
+		return nil
+	}
+	log.Printf("Found export %s", *export.Id)
+
+	ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+	defer cancel()
+	_, err = c.ffsw.DeleteExport(ctx, ffsw.DeleteExportRequest{
+		ExportId: export.Id,
+	})
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Deleted export %s", *export.Id)
+
+	/*exportid := export.Id
+
+	for {
+		response, err := func() (ffsw.GetExportResponse, error) {
+			ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+			defer cancel()
+			return c.ffsw.GetExport(ctx, ffsw.GetExportRequest{
+				ExportId: exportid,
+			})
+		}()
+		if err != nil {
+			return err
+		}
+		log.Printf("Export State:(%s)%s", *export.Id, export.LifecycleState)
+		if export.LifecycleState == ffsw.ExportSummaryLifecycleStateDeleted {
+			break
+		}
+		time.Sleep(time.Second * 1)
+
+		exportid = response.Export.Id
+
+	}*/
+
+	return nil
+}
+
+func (c *client) GetMountTargetIPs(mountTarget *ffsw.MountTarget) ([]core.PrivateIp, error) {
+	var privateIps []core.PrivateIp
+	for _, PrivateIPID := range mountTarget.PrivateIpIds {
+		response, err := func() (core.GetPrivateIpResponse, error) {
+			ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+			defer cancel()
+			return c.network.GetPrivateIp(ctx, core.GetPrivateIpRequest{
+				PrivateIpId: &PrivateIPID,
+			})
+		}()
+		if err != nil {
+			log.Printf("GetMountTargetIPS failed to get private IP for %s", PrivateIPID)
+			return nil, err
+		}
+		privateIps = append(privateIps, response.PrivateIp)
+	}
+	return privateIps, nil
 }

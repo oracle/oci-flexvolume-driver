@@ -17,14 +17,10 @@ package flexvolume
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"os"
+	"strings"
 )
-
-// Defined to enable overriding in tests.
-var out io.Writer = os.Stdout
-var exit = os.Exit
 
 // Status denotes the state of a Flexvolume call.
 type Status string
@@ -67,11 +63,15 @@ const (
 	OptionKeyPodUID       = "kubernetes.io/pod.uid"
 
 	OptionKeyServiceAccountName = "kubernetes.io/serviceAccount.name"
+
+	OptionKeypvOrVolumeName = "kubernetes.io/pvOrVolumeName"
 )
 
 // Driver is the main Flexvolume interface.
 type Driver interface {
-	Init() DriverStatus
+	Name() string
+	Claim(volumeID string) bool
+	Init() error
 	Attach(opts Options, nodeName string) DriverStatus
 	Detach(mountDevice, nodeName string) DriverStatus
 	WaitForAttach(mountDevice string, opts Options) DriverStatus
@@ -93,18 +93,18 @@ func ExitWithResult(result DriverStatus) {
 	res, err := json.Marshal(result)
 	if err != nil {
 		log.Printf("Error marshaling result: %v", err)
-		fmt.Fprintln(out, `{"status":"Failure","message":"Error marshaling result to JSON"}`)
+		fmt.Println(`{"status":"Failure","message":"Error marshaling result to JSON"}`)
 	} else {
 		s := string(res)
 		log.Printf("Command result: %s", s)
-		fmt.Fprintln(out, s)
+		fmt.Println(s)
 	}
-	exit(code)
+	os.Exit(code)
 }
 
 // Fail creates a StatusFailure Result with a given message.
-func Fail(a ...interface{}) DriverStatus {
-	msg := fmt.Sprint(a...)
+func Failf(s string, a ...interface{}) DriverStatus {
+	msg := fmt.Sprintf(s, a...)
 	return DriverStatus{
 		Status:  StatusFailure,
 		Message: msg,
@@ -112,18 +112,18 @@ func Fail(a ...interface{}) DriverStatus {
 }
 
 // Succeed creates a StatusSuccess Result with a given message.
-func Succeed(a ...interface{}) DriverStatus {
+func Succeedf(s string, a ...interface{}) DriverStatus {
 	return DriverStatus{
 		Status:  StatusSuccess,
-		Message: fmt.Sprint(a...),
+		Message: fmt.Sprintf(s, a...),
 	}
 }
 
 // NotSupported creates a StatusNotSupported Result with a given message.
-func NotSupported(a ...interface{}) DriverStatus {
+func NotSupportedf(s string, a ...interface{}) DriverStatus {
 	return DriverStatus{
 		Status:  StatusNotSupported,
-		Message: fmt.Sprint(a...),
+		Message: fmt.Sprintf(s, a...),
 	}
 }
 
@@ -141,11 +141,36 @@ func processOpts(optsStr string) (Options, error) {
 	return opts, nil
 }
 
+// ClaimVolume returns the Driver that has claimed the volume id
+func ClaimVolume(volumeID string, drivers []Driver) Driver {
+	for _, driver := range drivers {
+		if driver.Claim(volumeID) {
+			return driver
+		}
+	}
+	return nil
+}
+
+// Init initilises all the Drivers
+func Init(drivers []Driver) DriverStatus {
+	var errors []error
+	for _, driver := range drivers {
+		err := driver.Init()
+		if err != nil {
+			errors = append(errors, fmt.Errorf("%s:%s", driver.Name(), err))
+		}
+	}
+	if len(errors) != 0 {
+		return Failf("Init failed with errors:%v", errors)
+	}
+	return Succeedf("Init success")
+}
+
 // ExecDriver executes the appropriate FlexvolumeDriver command based on
 // recieved call-out.
-func ExecDriver(driver Driver, args []string) {
+func ExecDriver(drivers []Driver, args []string) DriverStatus {
 	if len(args) < 2 {
-		ExitWithResult(Fail("Expected at least one argument"))
+		return Failf("Expected at least one argument")
 	}
 
 	log.Printf("'%s %s' called with %s", args[0], args[1], args[2:])
@@ -153,71 +178,107 @@ func ExecDriver(driver Driver, args []string) {
 	switch args[1] {
 	// <driver executable> init
 	case "init":
-		ExitWithResult(driver.Init())
-
+		return Init(drivers)
 	// <driver executable> getvolumename <json options>
 	// Currently broken as of lates kube release (1.6.4). Work around hardcodes
 	// exiting with StatusNotSupported.
 	// TODO(apryde): Investigate current situation and version support
 	// requirements.
 	case "getvolumename":
-		ExitWithResult(NotSupported("getvolumename is broken as of kube 1.6.4"))
+		return NotSupportedf("getvolumename is broken as of kube 1.6.4")
 
 	// <driver executable> attach <json options> <node name>
 	case "attach":
 		if len(args) != 4 {
-			ExitWithResult(Fail("attach expected exactly 4 arguments; got ", args))
+			return Failf("attach expected exactly 4 arguments; got ", args)
 		}
 
 		opts, err := processOpts(args[2])
 		if err != nil {
-			ExitWithResult(Fail(err))
+			return Failf(err.Error())
+		}
+		nodeName := args[3]
+
+		volumeID, ok := opts[OptionKeypvOrVolumeName]
+		if !ok {
+			return Failf("key '%s' not found in attach options",
+				OptionKeypvOrVolumeName)
 		}
 
-		nodeName := args[3]
-		ExitWithResult(driver.Attach(opts, nodeName))
+		driver := ClaimVolume(volumeID, drivers)
+		if driver == nil {
+			return Failf("Unable to find flexdriver for volume id '%s'", volumeID)
+		}
 
-	// <driver executable> detach <mount device> <node name>
+		return driver.Attach(opts, nodeName)
+
+	// <driver executable> detach <volume name> <node name>
 	case "detach":
 		if len(args) != 4 {
-			ExitWithResult(Fail("detach expected exactly 4 arguments; got ", args))
+			return Failf("detach expected exactly 4 arguments; got ", args)
 		}
 
-		mountDevice := args[2]
+		volumeName := args[2]
 		nodeName := args[3]
-		ExitWithResult(driver.Detach(mountDevice, nodeName))
+		driver := ClaimVolume(volumeName, drivers)
+		if driver == nil {
+			return Failf("Unable to find flexdriver for volume id '%s'", volumeName)
+		}
+		return driver.Detach(volumeName, nodeName)
 
 	// <driver executable> waitforattach <mount device> <json options>
 	case "waitforattach":
 		if len(args) != 4 {
-			ExitWithResult(Fail("waitforattach expected exactly 4 arguments; got ", args))
+			return Failf("waitforattach expected exactly 4 arguments; got ", args)
 		}
 
 		mountDevice := args[2]
 		opts, err := processOpts(args[3])
 		if err != nil {
-			ExitWithResult(Fail(err))
+			return Failf(err.Error())
+		}
+		volumeID, ok := opts[OptionKeypvOrVolumeName]
+		if !ok {
+			return Failf("key '%s' not found in attach options",
+				OptionKeypvOrVolumeName)
 		}
 
-		ExitWithResult(driver.WaitForAttach(mountDevice, opts))
+		driver := ClaimVolume(volumeID, drivers)
+		if driver == nil {
+			return Failf("Unable to find flexdriver for volume id '%s'", volumeID)
+		}
+
+		return driver.WaitForAttach(mountDevice, opts)
 
 	// <driver executable> isattached <json options> <node name>
 	case "isattached":
 		if len(args) != 4 {
-			ExitWithResult(Fail("isattached expected exactly 4 arguments; got ", args))
+			return Failf("isattached expected exactly 4 arguments; got ", args)
 		}
 
 		opts, err := processOpts(args[2])
 		if err != nil {
-			ExitWithResult(Fail(err))
+			return Failf(err.Error())
 		}
+		volumeID, ok := opts[OptionKeypvOrVolumeName]
+		if !ok {
+			return Failf("key '%s' not found in attach options:%#v",
+				OptionKeypvOrVolumeName,
+				opts)
+		}
+
 		nodeName := args[3]
-		ExitWithResult(driver.IsAttached(opts, nodeName))
+		driver := ClaimVolume(volumeID, drivers)
+		if driver == nil {
+			return Failf("Unable to find flexdriver for volume id '%s'", volumeID)
+		}
+
+		return driver.IsAttached(opts, nodeName)
 
 	// <driver executable> mountdevice <mount dir> <mount device> <json options>
 	case "mountdevice":
 		if len(args) != 5 {
-			ExitWithResult(Fail("mountdevice expected exactly 5 arguments; got ", args))
+			return Failf("mountdevice expected exactly 5 arguments; got ", args)
 		}
 
 		mountDir := args[2]
@@ -225,45 +286,87 @@ func ExecDriver(driver Driver, args []string) {
 
 		opts, err := processOpts(args[4])
 		if err != nil {
-			ExitWithResult(Fail(err))
+			return Failf(err.Error())
 		}
 
-		ExitWithResult(driver.MountDevice(mountDir, mountDevice, opts))
+		volumeID, ok := opts[OptionKeypvOrVolumeName]
+		if !ok {
+			return Failf("key '%s' not found in attach options",
+				OptionKeypvOrVolumeName)
+		}
+
+		driver := ClaimVolume(volumeID, drivers)
+		if driver == nil {
+			return Failf("Unable to find flexdriver for volume id '%s'", volumeID)
+		}
+
+		return driver.MountDevice(mountDir, mountDevice, opts)
 
 	// <driver executable> unmountdevice <mount dir>
 	case "unmountdevice":
 		if len(args) != 3 {
-			ExitWithResult(Fail("unmountdevice expected exactly 3 arguments; got ", args))
+			return Failf("unmountdevice expected exactly 3 arguments; got ", args)
 		}
 
 		mountDir := args[2]
-		ExitWithResult(driver.UnmountDevice(mountDir))
+
+		// assumes that the last part of mountDir is the volumeID
+		parts := strings.Split(mountDir, "/")
+		volumeID := parts[len(parts)-1]
+
+		driver := ClaimVolume(volumeID, drivers)
+		if driver == nil {
+			return Failf("Unable to find flexdriver for volume id '%s'", volumeID)
+		}
+
+		return driver.UnmountDevice(mountDir)
 
 	// <driver executable> mount <mount dir> <json options>
 	case "mount":
 		if len(args) != 4 {
-			ExitWithResult(Fail("mount expected exactly 4 arguments; got ", args))
+			return Failf("mount expected exactly 4 arguments; got ", args)
 		}
 
 		mountDir := args[2]
 
 		opts, err := processOpts(args[3])
 		if err != nil {
-			ExitWithResult(Fail(err))
+			return Failf(err.Error())
 		}
 
-		ExitWithResult(driver.Mount(mountDir, opts))
+		volumeID, ok := opts[OptionKeypvOrVolumeName]
+		if !ok {
+			return Failf("key '%s' not found in attach options",
+				OptionKeypvOrVolumeName)
+		}
+
+		driver := ClaimVolume(volumeID, drivers)
+		if driver == nil {
+			return Failf("Unable to find flexdriver for volume id '%s'", volumeID)
+		}
+
+		return driver.Mount(mountDir, opts)
 
 	// <driver executable> unmount <mount dir>
 	case "unmount":
 		if len(args) != 3 {
-			ExitWithResult(Fail("mount expected exactly 3 arguments; got ", args))
+			return Failf("mount expected exactly 3 arguments; got ", args)
 		}
 
 		mountDir := args[2]
-		ExitWithResult(driver.Unmount(mountDir))
+
+		// assumes that the last part of mountDir is the volumeID
+		parts := strings.Split(mountDir, "/")
+		volumeID := parts[len(parts)-1]
+
+		driver := ClaimVolume(volumeID, drivers)
+		if driver == nil {
+			return Failf("Unable to find flexdriver for volume id '%s'", volumeID)
+		}
+
+		return driver.Unmount(mountDir)
 
 	default:
-		ExitWithResult(Fail("Invalid command; got ", args))
+		return Failf("Invalid command; got ", args)
 	}
 }

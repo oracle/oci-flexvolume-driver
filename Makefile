@@ -26,7 +26,15 @@ GOARCH ?= amd64
 SRC_DIRS := cmd pkg # directories which hold app source (not vendored)
 
 .PHONY: all
-all: clean test build build-integration-tests
+all: clean check test build build-integration-tests
+
+.PHONY: check
+check: gofmt govet check-boilerplate
+
+.PHONY: check-boilerplate
+check-boilerplate:
+	@echo "Checking Boilerplate"
+	@./hack/verify-boilerplate.sh
 
 .PHONY: gofmt
 gofmt:

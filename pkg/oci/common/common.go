@@ -12,25 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package driver
+package common
 
-import "testing"
+import (
+	"os"
+)
 
-var volumeOCIDTests = []struct {
-	regionKey  string
-	volumeName string
-	expected   string
-}{
-	{"phx", "aaaaaa", "ocid1.volume.oc1.phx.aaaaaa"},
-	{"iad", "aaaaaa", "ocid1.volume.oc1.iad.aaaaaa"},
-	{"fra", "aaaaaa", "ocid1.volume.oc1.eu-frankfurt-1.aaaaaa"},
+// GetDriverDirectory gets the path for the flexvolume driver either from the
+// env or default.
+func GetDriverDirectory() string {
+	// TODO(apryde): Document this ENV var.
+	path := os.Getenv("OCI_FLEXD_DRIVER_DIRECTORY")
+	if path == "" {
+		path = "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci"
+	}
+	return path
 }
 
-func TestDeriveVolumeOCID(t *testing.T) {
-	for _, tt := range volumeOCIDTests {
-		result := deriveVolumeOCID(tt.regionKey, tt.volumeName)
-		if result != tt.expected {
-			t.Errorf("Failed to derive OCID. Expected %s got %s", tt.expected, result)
-		}
-	}
+// GetConfigPath gets the path to the OCI API credentials.
+func GetConfigPath() string {
+	return GetDriverDirectory() + "/config.yaml"
 }

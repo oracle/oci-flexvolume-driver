@@ -23,6 +23,7 @@ import (
 	"github.com/oracle/oci-go-sdk/core"
 )
 
+// OCICache hold our lookup map and file lock
 type OCICache struct {
 	vnics    map[string]core.Vnic
 	file     *os.File
