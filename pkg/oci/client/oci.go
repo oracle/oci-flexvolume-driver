@@ -16,8 +16,14 @@ package client
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"net"
+	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -91,10 +97,20 @@ func New(configPath string) (Interface, error) {
 	if err != nil {
 		return nil, err
 	}
+	err = configureCustomTransport(&computeClient.BaseClient)
+	if err != nil {
+		return nil, err
+	}
+
 	virtualNetworkClient, err := core.NewVirtualNetworkClientWithConfigurationProvider(configProvider)
 	if err != nil {
 		return nil, err
 	}
+	err = configureCustomTransport(&virtualNetworkClient.BaseClient)
+	if err != nil {
+		return nil, err
+	}
+
 	return &client{
 		compute: &computeClient,
 		network: &virtualNetworkClient,
@@ -431,4 +447,54 @@ func (c *client) WaitForVolumeDetached(volumeAttachmentId string) error {
 // GetConfig returns the Config associated with the OCI API client.
 func (c *client) GetConfig() *Config {
 	return c.config
+}
+
+// configureCustomTransport customises the base client's transport to use
+// the environment variable specified proxy and/or certificate.
+func configureCustomTransport(baseClient *common.BaseClient) error {
+
+	httpClient := baseClient.HTTPClient.(*http.Client)
+
+	var transport *http.Transport
+	if httpClient.Transport == nil {
+		transport = &http.Transport{
+			DialContext: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+				DualStack: true,
+			}).DialContext,
+			MaxIdleConns:          100,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		}
+	} else {
+		transport = httpClient.Transport.(*http.Transport)
+	}
+
+	ociProxy := os.Getenv("OCI_PROXY")
+	if ociProxy != "" {
+		proxyURL, err := url.Parse(ociProxy)
+		if err != nil {
+			return fmt.Errorf("failed to parse OCI proxy url: %s, err: %v", ociProxy, err)
+		}
+		transport.Proxy = func(req *http.Request) (*url.URL, error) {
+			return proxyURL, nil
+		}
+	}
+
+	trustedCACertPath := os.Getenv("TRUSTED_CA_CERT_PATH")
+	if trustedCACertPath != "" {
+		trustedCACert, err := ioutil.ReadFile(trustedCACertPath)
+		if err != nil {
+			return fmt.Errorf("failed to read root certificate: %s, err: %v", trustedCACertPath, err)
+		}
+		caCertPool := x509.NewCertPool()
+		ok := caCertPool.AppendCertsFromPEM(trustedCACert)
+		if !ok {
+			return fmt.Errorf("failed to parse root certificate: %s", trustedCACertPath)
+		}
+		transport.TLSClientConfig = &tls.Config{RootCAs: caCertPool}
+	}
+	return nil
 }
