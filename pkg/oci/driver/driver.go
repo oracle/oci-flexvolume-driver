@@ -72,7 +72,7 @@ func (d OCIFlexvolumeDriver) Init() flexvolume.DriverStatus {
 // deriveVolumeOCID will figure out the correct OCID for a volume
 // based solely on the region key and volumeName. Because of differences
 // across regions we need to impose some awkward logic here to get the correct
-// OCID or if it is already an ocid then return the OCID.
+// OCID or if it is already an OCID then return the OCID.
 func deriveVolumeOCID(regionKey string, volumeName string) string {
 	if strings.HasPrefix(volumeName, ocidPrefix) {
 		return volumeName
