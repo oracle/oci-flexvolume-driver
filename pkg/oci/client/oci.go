@@ -73,19 +73,20 @@ type Interface interface {
 	// GetMountTargetForAD returns a mount target for a given AD
 	GetMountTargetForAD(AvailabilityDomain string) (*filestorage.MountTarget, error)
 
-	// GetFilesystem
+	// GetFilesystem returns the filesystem for a given id
 	GetFileSystem(ocid string) (*filestorage.FileSystem, error)
 
-	// AttachFileSystemToMountTarget
+	// AttachFileSystemToMountTarget attaches the filesystem to the mount target
 	AttachFileSystemToMountTarget(fileSystem *filestorage.FileSystem, mountTarget *filestorage.MountTarget, path string) error
 
-	// DetachFileSystemToMountTarget
+	// DetachFileSystemToMountTarget detaches the filesystem from the mount target.
+	// trjl: TODO rename? -> DetachFileSystemFromMountTarget
 	DetachFileSystemToMountTarget(fileSystem *filestorage.FileSystem, mountTarget *filestorage.MountTarget, path string) error
 
 	// GetMountTargetIPS gets the mount target private ip addresses
 	GetMountTargetIPS(mountTarget *filestorage.MountTarget) ([]core.PrivateIp, error)
 
-	// This checks to see if the filesystem is attached to the mounttarget
+	// GetMountTargetIPs checks to see if the filesystem is attached to the mounttarget
 	IsFileSystemAttached(fileSystem *filestorage.FileSystem, mountTarget *filestorage.MountTarget, path string) (bool, error)
 }
 

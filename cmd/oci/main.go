@@ -51,7 +51,7 @@ func main() {
 
 	log.SetOutput(f)
 	// Set the Process ID as a prefix
-	log.SetPrefix(fmt.Sprintf("%d:", os.Getpid()))
+	log.SetPrefix(fmt.Sprintf("%d: ", os.Getpid()))
 
 	log.Printf("OCI FlexVolume Driver version: %s (%s)", version, build)
 

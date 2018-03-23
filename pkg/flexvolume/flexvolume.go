@@ -141,7 +141,7 @@ func processOpts(optsStr string) (Options, error) {
 	return opts, nil
 }
 
-// ClaimVolume returns the Driver that has claimed the volume id
+// ClaimVolume returns the Driver that has claimed the volume id.
 func ClaimVolume(volumeID string, drivers []Driver) Driver {
 	for _, driver := range drivers {
 		if driver.Claim(volumeID) {
@@ -151,17 +151,17 @@ func ClaimVolume(volumeID string, drivers []Driver) Driver {
 	return nil
 }
 
-// Init initilises all the Drivers
+// Init initilises all the Drivers.
 func Init(drivers []Driver) DriverStatus {
 	var errors []error
 	for _, driver := range drivers {
 		err := driver.Init()
 		if err != nil {
-			errors = append(errors, fmt.Errorf("%s:%s", driver.Name(), err))
+			errors = append(errors, fmt.Errorf("%s: %s", driver.Name(), err))
 		}
 	}
 	if len(errors) != 0 {
-		return Failf("Init failed with errors:%v", errors)
+		return Failf("init failed with errors: %v", errors)
 	}
 	return Succeedf("Init success")
 }
@@ -170,7 +170,7 @@ func Init(drivers []Driver) DriverStatus {
 // recieved call-out.
 func ExecDriver(drivers []Driver, args []string) DriverStatus {
 	if len(args) < 2 {
-		return Failf("Expected at least one argument")
+		return Failf("expected at least one argument")
 	}
 
 	log.Printf("'%s %s' called with %s", args[0], args[1], args[2:])
@@ -207,7 +207,7 @@ func ExecDriver(drivers []Driver, args []string) DriverStatus {
 
 		driver := ClaimVolume(volumeID, drivers)
 		if driver == nil {
-			return Failf("Unable to find flexdriver for volume id '%s'", volumeID)
+			return Failf("unable to find flexdriver for volume id '%s'", volumeID)
 		}
 
 		return driver.Attach(opts, nodeName)
@@ -222,7 +222,7 @@ func ExecDriver(drivers []Driver, args []string) DriverStatus {
 		nodeName := args[3]
 		driver := ClaimVolume(volumeName, drivers)
 		if driver == nil {
-			return Failf("Unable to find flexdriver for volume id '%s'", volumeName)
+			return Failf("unable to find flexdriver for volume id '%s'", volumeName)
 		}
 		return driver.Detach(volumeName, nodeName)
 
@@ -245,7 +245,7 @@ func ExecDriver(drivers []Driver, args []string) DriverStatus {
 
 		driver := ClaimVolume(volumeID, drivers)
 		if driver == nil {
-			return Failf("Unable to find flexdriver for volume id '%s'", volumeID)
+			return Failf("unable to find flexdriver for volume id '%s'", volumeID)
 		}
 
 		return driver.WaitForAttach(mountDevice, opts)
@@ -270,7 +270,7 @@ func ExecDriver(drivers []Driver, args []string) DriverStatus {
 		nodeName := args[3]
 		driver := ClaimVolume(volumeID, drivers)
 		if driver == nil {
-			return Failf("Unable to find flexdriver for volume id '%s'", volumeID)
+			return Failf("unable to find flexdriver for volume id '%s'", volumeID)
 		}
 
 		return driver.IsAttached(opts, nodeName)
@@ -297,7 +297,7 @@ func ExecDriver(drivers []Driver, args []string) DriverStatus {
 
 		driver := ClaimVolume(volumeID, drivers)
 		if driver == nil {
-			return Failf("Unable to find flexdriver for volume id '%s'", volumeID)
+			return Failf("unable to find flexdriver for volume id '%s'", volumeID)
 		}
 
 		return driver.MountDevice(mountDir, mountDevice, opts)
@@ -309,6 +309,9 @@ func ExecDriver(drivers []Driver, args []string) DriverStatus {
 		}
 
 		mountDir := args[2]
+		if !strings.ContainsAny(mountDir, "/") {
+			return Failf("unmountdevice expected well-formed mountDir argument; got ", args[2])
+		}
 
 		// assumes that the last part of mountDir is the volumeID
 		parts := strings.Split(mountDir, "/")
@@ -316,7 +319,7 @@ func ExecDriver(drivers []Driver, args []string) DriverStatus {
 
 		driver := ClaimVolume(volumeID, drivers)
 		if driver == nil {
-			return Failf("Unable to find flexdriver for volume id '%s'", volumeID)
+			return Failf("unable to find flexdriver for volume id '%s'", volumeID)
 		}
 
 		return driver.UnmountDevice(mountDir)
@@ -342,7 +345,7 @@ func ExecDriver(drivers []Driver, args []string) DriverStatus {
 
 		driver := ClaimVolume(volumeID, drivers)
 		if driver == nil {
-			return Failf("Unable to find flexdriver for volume id '%s'", volumeID)
+			return Failf("unable to find flexdriver for volume id '%s'", volumeID)
 		}
 
 		return driver.Mount(mountDir, opts)
@@ -354,6 +357,9 @@ func ExecDriver(drivers []Driver, args []string) DriverStatus {
 		}
 
 		mountDir := args[2]
+		if !strings.ContainsAny(mountDir, "/") {
+			return Failf("mount expected well-formed mountDir argument; got ", args[2])
+		}
 
 		// assumes that the last part of mountDir is the volumeID
 		parts := strings.Split(mountDir, "/")
@@ -361,12 +367,12 @@ func ExecDriver(drivers []Driver, args []string) DriverStatus {
 
 		driver := ClaimVolume(volumeID, drivers)
 		if driver == nil {
-			return Failf("Unable to find flexdriver for volume id '%s'", volumeID)
+			return Failf("unable to find flexdriver for volume id '%s'", volumeID)
 		}
 
 		return driver.Unmount(mountDir)
 
 	default:
-		return Failf("Invalid command; got ", args)
+		return Failf("invalid command; got ", args)
 	}
 }
