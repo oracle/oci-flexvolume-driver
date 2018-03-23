@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/oracle/oci-flexvolume-driver/pkg/flexvolume"
 	"github.com/oracle/oci-flexvolume-driver/pkg/iscsi"
@@ -30,6 +31,7 @@ const (
 	// FIXME: Assume lun 1 for now?? Can we get the LUN via the API?
 	diskIDByPathTemplate = "/dev/disk/by-path/ip-%s:%d-iscsi-%s-lun-1"
 	volumeOCIDTemplate   = "ocid1.volume.oc1.%s.%s"
+	ocidPrefix           = "ocid1."
 )
 
 // OCIFlexvolumeDriver implements the flexvolume.Driver interface for OCI.
@@ -70,10 +72,13 @@ func (d OCIFlexvolumeDriver) Init() flexvolume.DriverStatus {
 // deriveVolumeOCID will figure out the correct OCID for a volume
 // based solely on the region key and volumeName. Because of differences
 // across regions we need to impose some awkward logic here to get the correct
-// OCID
+// OCID or if it is already an OCID then return the OCID.
 func deriveVolumeOCID(regionKey string, volumeName string) string {
-	var volumeOCID string
+	if strings.HasPrefix(volumeName, ocidPrefix) {
+		return volumeName
+	}
 
+	var volumeOCID string
 	if regionKey == "fra" {
 		volumeOCID = fmt.Sprintf(volumeOCIDTemplate, "eu-frankfurt-1", volumeName)
 	} else {
