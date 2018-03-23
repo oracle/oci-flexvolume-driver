@@ -1,4 +1,4 @@
-// Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 // Code generated. DO NOT EDIT.
 
 // Audit API
@@ -35,18 +35,21 @@ func NewAuditClientWithConfigurationProvider(configProvider common.Configuration
 	return
 }
 
-// SetConfigurationProvider sets the configuration provider, returns an error if is not valid
+// SetRegion overrides the region of this client.
+func (client *AuditClient) SetRegion(region string) {
+	client.Host = fmt.Sprintf(common.DefaultHostURLTemplate, "audit", region)
+}
+
+// SetConfigurationProvider sets the configuration provider including the region, returns an error if is not valid
 func (client *AuditClient) setConfigurationProvider(configProvider common.ConfigurationProvider) error {
 	if ok, err := common.IsConfigurationProviderValid(configProvider); !ok {
 		return err
 	}
 
-	region, err := configProvider.Region()
-	if err != nil {
-		return err
-	}
+	// Error has been checked already
+	region, _ := configProvider.Region()
 	client.config = &configProvider
-	client.Host = fmt.Sprintf(common.DefaultHostURLTemplate, "audit", string(region))
+	client.SetRegion(region)
 	return nil
 }
 
@@ -92,12 +95,19 @@ func (client AuditClient) ListEvents(ctx context.Context, request ListEventsRequ
 }
 
 // UpdateConfiguration Update the configuration
-func (client AuditClient) UpdateConfiguration(ctx context.Context, request UpdateConfigurationRequest) (err error) {
+func (client AuditClient) UpdateConfiguration(ctx context.Context, request UpdateConfigurationRequest) (response UpdateConfigurationResponse, err error) {
 	httpRequest, err := common.MakeDefaultHTTPRequestWithTaggedStruct(http.MethodPut, "/configuration", request)
 	if err != nil {
 		return
 	}
 
-	_, err = client.Call(ctx, &httpRequest)
+	httpResponse, err := client.Call(ctx, &httpRequest)
+	defer common.CloseBodyIfValid(httpResponse)
+	response.RawResponse = httpResponse
+	if err != nil {
+		return
+	}
+
+	err = common.UnmarshalResponse(httpResponse, &response)
 	return
 }

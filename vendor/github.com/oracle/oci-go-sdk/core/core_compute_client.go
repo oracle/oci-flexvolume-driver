@@ -1,4 +1,4 @@
-// Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 // Code generated. DO NOT EDIT.
 
 // Core Services API
@@ -35,18 +35,21 @@ func NewComputeClientWithConfigurationProvider(configProvider common.Configurati
 	return
 }
 
-// SetConfigurationProvider sets the configuration provider, returns an error if is not valid
+// SetRegion overrides the region of this client.
+func (client *ComputeClient) SetRegion(region string) {
+	client.Host = fmt.Sprintf(common.DefaultHostURLTemplate, "iaas", region)
+}
+
+// SetConfigurationProvider sets the configuration provider including the region, returns an error if is not valid
 func (client *ComputeClient) setConfigurationProvider(configProvider common.ConfigurationProvider) error {
 	if ok, err := common.IsConfigurationProviderValid(configProvider); !ok {
 		return err
 	}
 
-	region, err := configProvider.Region()
-	if err != nil {
-		return err
-	}
+	// Error has been checked already
+	region, _ := configProvider.Region()
 	client.config = &configProvider
-	client.Host = fmt.Sprintf(common.DefaultHostURLTemplate, "iaas", string(region))
+	client.SetRegion(region)
 	return nil
 }
 
@@ -75,7 +78,7 @@ func (client ComputeClient) AttachBootVolume(ctx context.Context, request Attach
 
 // AttachVnic Creates a secondary VNIC and attaches it to the specified instance.
 // For more information about secondary VNICs, see
-// [Virtual Network Interface Cards (VNICs)]({{DOC_SERVER_URL}}/Content/Network/Tasks/managingVNICs.htm).
+// Virtual Network Interface Cards (VNICs) (https://docs.us-phoenix-1.oraclecloud.com/Content/Network/Tasks/managingVNICs.htm).
 func (client ComputeClient) AttachVnic(ctx context.Context, request AttachVnicRequest) (response AttachVnicResponse, err error) {
 	httpRequest, err := common.MakeDefaultHTTPRequestWithTaggedStruct(http.MethodPost, "/vnicAttachments/", request)
 	if err != nil {
@@ -146,17 +149,17 @@ func (client ComputeClient) CaptureConsoleHistory(ctx context.Context, request C
 // CreateImage Creates a boot disk image for the specified instance or imports an exported image from the Oracle Cloud Infrastructure Object Storage service.
 // When creating a new image, you must provide the OCID of the instance you want to use as the basis for the image, and
 // the OCID of the compartment containing that instance. For more information about images,
-// see [Managing Custom Images]({{DOC_SERVER_URL}}/Content/Compute/Tasks/managingcustomimages.htm).
+// see Managing Custom Images (https://docs.us-phoenix-1.oraclecloud.com/Content/Compute/Tasks/managingcustomimages.htm).
 // When importing an exported image from Object Storage, you specify the source information
 // in ImageSourceDetails.
 // When importing an image based on the namespace, bucket name, and object name,
 // use ImageSourceViaObjectStorageTupleDetails.
 // When importing an image based on the Object Storage URL, use
 // ImageSourceViaObjectStorageUriDetails.
-// See [Object Storage URLs]({{DOC_SERVER_URL}}/Content/Compute/Tasks/imageimportexport.htm#URLs) and [pre-authenticated requests]({{DOC_SERVER_URL}}/Content/Object/Tasks/managingaccess.htm#pre-auth)
+// See Object Storage URLs (https://docs.us-phoenix-1.oraclecloud.com/Content/Compute/Tasks/imageimportexport.htm#URLs) and pre-authenticated requests (https://docs.us-phoenix-1.oraclecloud.com/Content/Object/Tasks/managingaccess.htm#pre-auth)
 // for constructing URLs for image import/export.
 // For more information about importing exported images, see
-// [Image Import/Export]({{DOC_SERVER_URL}}/Content/Compute/Tasks/imageimportexport.htm).
+// Image Import/Export (https://docs.us-phoenix-1.oraclecloud.com/Content/Compute/Tasks/imageimportexport.htm).
 // You may optionally specify a *display name* for the image, which is simply a friendly name or description.
 // It does not have to be unique, and you can change it. See UpdateImage.
 // Avoid entering confidential information.
@@ -180,7 +183,7 @@ func (client ComputeClient) CreateImage(ctx context.Context, request CreateImage
 // CreateInstanceConsoleConnection Creates a new console connection to the specified instance.
 // Once the console connection has been created and is available,
 // you connect to the console using SSH.
-// For more information about console access, see [Accessing the Console]({{DOC_SERVER_URL}}/Content/Compute/References/serialconsole.htm).
+// For more information about console access, see Accessing the Console (https://docs.us-phoenix-1.oraclecloud.com/Content/Compute/References/serialconsole.htm).
 func (client ComputeClient) CreateInstanceConsoleConnection(ctx context.Context, request CreateInstanceConsoleConnectionRequest) (response CreateInstanceConsoleConnectionResponse, err error) {
 	httpRequest, err := common.MakeDefaultHTTPRequestWithTaggedStruct(http.MethodPost, "/instanceConsoleConnections", request)
 	if err != nil {
@@ -199,48 +202,76 @@ func (client ComputeClient) CreateInstanceConsoleConnection(ctx context.Context,
 }
 
 // DeleteConsoleHistory Deletes the specified console history metadata and the console history data.
-func (client ComputeClient) DeleteConsoleHistory(ctx context.Context, request DeleteConsoleHistoryRequest) (err error) {
+func (client ComputeClient) DeleteConsoleHistory(ctx context.Context, request DeleteConsoleHistoryRequest) (response DeleteConsoleHistoryResponse, err error) {
 	httpRequest, err := common.MakeDefaultHTTPRequestWithTaggedStruct(http.MethodDelete, "/instanceConsoleHistories/{instanceConsoleHistoryId}", request)
 	if err != nil {
 		return
 	}
 
-	_, err = client.Call(ctx, &httpRequest)
+	httpResponse, err := client.Call(ctx, &httpRequest)
+	defer common.CloseBodyIfValid(httpResponse)
+	response.RawResponse = httpResponse
+	if err != nil {
+		return
+	}
+
+	err = common.UnmarshalResponse(httpResponse, &response)
 	return
 }
 
 // DeleteImage Deletes an image.
-func (client ComputeClient) DeleteImage(ctx context.Context, request DeleteImageRequest) (err error) {
+func (client ComputeClient) DeleteImage(ctx context.Context, request DeleteImageRequest) (response DeleteImageResponse, err error) {
 	httpRequest, err := common.MakeDefaultHTTPRequestWithTaggedStruct(http.MethodDelete, "/images/{imageId}", request)
 	if err != nil {
 		return
 	}
 
-	_, err = client.Call(ctx, &httpRequest)
+	httpResponse, err := client.Call(ctx, &httpRequest)
+	defer common.CloseBodyIfValid(httpResponse)
+	response.RawResponse = httpResponse
+	if err != nil {
+		return
+	}
+
+	err = common.UnmarshalResponse(httpResponse, &response)
 	return
 }
 
 // DeleteInstanceConsoleConnection Deletes the specified instance console connection.
-func (client ComputeClient) DeleteInstanceConsoleConnection(ctx context.Context, request DeleteInstanceConsoleConnectionRequest) (err error) {
+func (client ComputeClient) DeleteInstanceConsoleConnection(ctx context.Context, request DeleteInstanceConsoleConnectionRequest) (response DeleteInstanceConsoleConnectionResponse, err error) {
 	httpRequest, err := common.MakeDefaultHTTPRequestWithTaggedStruct(http.MethodDelete, "/instanceConsoleConnections/{instanceConsoleConnectionId}", request)
 	if err != nil {
 		return
 	}
 
-	_, err = client.Call(ctx, &httpRequest)
+	httpResponse, err := client.Call(ctx, &httpRequest)
+	defer common.CloseBodyIfValid(httpResponse)
+	response.RawResponse = httpResponse
+	if err != nil {
+		return
+	}
+
+	err = common.UnmarshalResponse(httpResponse, &response)
 	return
 }
 
 // DetachBootVolume Detaches a boot volume from an instance. You must specify the OCID of the boot volume attachment.
 // This is an asynchronous operation. The attachment's `lifecycleState` will change to DETACHING temporarily
 // until the attachment is completely removed.
-func (client ComputeClient) DetachBootVolume(ctx context.Context, request DetachBootVolumeRequest) (err error) {
+func (client ComputeClient) DetachBootVolume(ctx context.Context, request DetachBootVolumeRequest) (response DetachBootVolumeResponse, err error) {
 	httpRequest, err := common.MakeDefaultHTTPRequestWithTaggedStruct(http.MethodDelete, "/bootVolumeAttachments/{bootVolumeAttachmentId}", request)
 	if err != nil {
 		return
 	}
 
-	_, err = client.Call(ctx, &httpRequest)
+	httpResponse, err := client.Call(ctx, &httpRequest)
+	defer common.CloseBodyIfValid(httpResponse)
+	response.RawResponse = httpResponse
+	if err != nil {
+		return
+	}
+
+	err = common.UnmarshalResponse(httpResponse, &response)
 	return
 }
 
@@ -250,38 +281,52 @@ func (client ComputeClient) DetachBootVolume(ctx context.Context, request Detach
 // and secondary) are automatically detached and deleted.
 // **Important:** If the VNIC has a
 // PrivateIp that is the
-// [target of a route rule]({{DOC_SERVER_URL}}/Content/Network/Tasks/managingroutetables.htm#privateip),
+// target of a route rule (https://docs.us-phoenix-1.oraclecloud.com/Content/Network/Tasks/managingroutetables.htm#privateip),
 // deleting the VNIC causes that route rule to blackhole and the traffic
 // will be dropped.
-func (client ComputeClient) DetachVnic(ctx context.Context, request DetachVnicRequest) (err error) {
+func (client ComputeClient) DetachVnic(ctx context.Context, request DetachVnicRequest) (response DetachVnicResponse, err error) {
 	httpRequest, err := common.MakeDefaultHTTPRequestWithTaggedStruct(http.MethodDelete, "/vnicAttachments/{vnicAttachmentId}", request)
 	if err != nil {
 		return
 	}
 
-	_, err = client.Call(ctx, &httpRequest)
+	httpResponse, err := client.Call(ctx, &httpRequest)
+	defer common.CloseBodyIfValid(httpResponse)
+	response.RawResponse = httpResponse
+	if err != nil {
+		return
+	}
+
+	err = common.UnmarshalResponse(httpResponse, &response)
 	return
 }
 
 // DetachVolume Detaches a storage volume from an instance. You must specify the OCID of the volume attachment.
 // This is an asynchronous operation. The attachment's `lifecycleState` will change to DETACHING temporarily
 // until the attachment is completely removed.
-func (client ComputeClient) DetachVolume(ctx context.Context, request DetachVolumeRequest) (err error) {
+func (client ComputeClient) DetachVolume(ctx context.Context, request DetachVolumeRequest) (response DetachVolumeResponse, err error) {
 	httpRequest, err := common.MakeDefaultHTTPRequestWithTaggedStruct(http.MethodDelete, "/volumeAttachments/{volumeAttachmentId}", request)
 	if err != nil {
 		return
 	}
 
-	_, err = client.Call(ctx, &httpRequest)
+	httpResponse, err := client.Call(ctx, &httpRequest)
+	defer common.CloseBodyIfValid(httpResponse)
+	response.RawResponse = httpResponse
+	if err != nil {
+		return
+	}
+
+	err = common.UnmarshalResponse(httpResponse, &response)
 	return
 }
 
 // ExportImage Exports the specified image to the Oracle Cloud Infrastructure Object Storage service. You can use the Object Storage URL,
 // or the namespace, bucket name, and object name when specifying the location to export to.
-// For more information about exporting images, see [Image Import/Export]({{DOC_SERVER_URL}}/Content/Compute/Tasks/imageimportexport.htm).
+// For more information about exporting images, see Image Import/Export (https://docs.us-phoenix-1.oraclecloud.com/Content/Compute/Tasks/imageimportexport.htm).
 // To perform an image export, you need write access to the Object Storage bucket for the image,
-// see [Let Users Write Objects to Object Storage Buckets]({{DOC_SERVER_URL}}/Content/Identity/Concepts/commonpolicies.htm#Let4).
-// See [Object Storage URLs]({{DOC_SERVER_URL}}/Content/Compute/Tasks/imageimportexport.htm#URLs) and [pre-authenticated requests]({{DOC_SERVER_URL}}/Content/Object/Tasks/managingaccess.htm#pre-auth)
+// see Let Users Write Objects to Object Storage Buckets (https://docs.us-phoenix-1.oraclecloud.com/Content/Identity/Concepts/commonpolicies.htm#Let4).
+// See Object Storage URLs (https://docs.us-phoenix-1.oraclecloud.com/Content/Compute/Tasks/imageimportexport.htm#URLs) and pre-authenticated requests (https://docs.us-phoenix-1.oraclecloud.com/Content/Object/Tasks/managingaccess.htm#pre-auth)
 // for constructing URLs for image import/export.
 func (client ComputeClient) ExportImage(ctx context.Context, request ExportImageRequest) (response ExportImageResponse, err error) {
 	httpRequest, err := common.MakeDefaultHTTPRequestWithTaggedStruct(http.MethodPost, "/images/{imageId}/actions/export", request)
@@ -497,11 +542,11 @@ func (client ComputeClient) InstanceAction(ctx context.Context, request Instance
 
 // LaunchInstance Creates a new instance in the specified compartment and the specified Availability Domain.
 // For general information about instances, see
-// [Overview of the Compute Service]({{DOC_SERVER_URL}}/Content/Compute/Concepts/computeoverview.htm).
+// Overview of the Compute Service (https://docs.us-phoenix-1.oraclecloud.com/Content/Compute/Concepts/computeoverview.htm).
 // For information about access control and compartments, see
-// [Overview of the IAM Service]({{DOC_SERVER_URL}}/Content/Identity/Concepts/overview.htm).
+// Overview of the IAM Service (https://docs.us-phoenix-1.oraclecloud.com/Content/Identity/Concepts/overview.htm).
 // For information about Availability Domains, see
-// [Regions and Availability Domains]({{DOC_SERVER_URL}}/Content/General/Concepts/regions.htm).
+// Regions and Availability Domains (https://docs.us-phoenix-1.oraclecloud.com/Content/General/Concepts/regions.htm).
 // To get a list of Availability Domains, use the `ListAvailabilityDomains` operation
 // in the Identity and Access Management Service API.
 // All Oracle Cloud Infrastructure resources, including instances, get an Oracle-assigned,
@@ -518,7 +563,7 @@ func (client ComputeClient) InstanceAction(ctx context.Context, request Instance
 // operation to get the VNIC ID for the instance, and then call
 // GetVnic with the VNIC ID.
 // You can later add secondary VNICs to an instance. For more information, see
-// [Virtual Network Interface Cards (VNICs)]({{DOC_SERVER_URL}}/Content/Network/Tasks/managingVNICs.htm).
+// Virtual Network Interface Cards (VNICs) (https://docs.us-phoenix-1.oraclecloud.com/Content/Network/Tasks/managingVNICs.htm).
 func (client ComputeClient) LaunchInstance(ctx context.Context, request LaunchInstanceRequest) (response LaunchInstanceResponse, err error) {
 	httpRequest, err := common.MakeDefaultHTTPRequestWithTaggedStruct(http.MethodPost, "/instances/", request)
 	if err != nil {
@@ -577,7 +622,7 @@ func (client ComputeClient) ListConsoleHistories(ctx context.Context, request Li
 // If you specify a value for the `sortBy` parameter, Oracle-provided images appear first in the list, followed by custom images.
 // For more
 // information about images, see
-// [Managing Custom Images]({{DOC_SERVER_URL}}/Content/Compute/Tasks/managingcustomimages.htm).
+// Managing Custom Images (https://docs.us-phoenix-1.oraclecloud.com/Content/Compute/Tasks/managingcustomimages.htm).
 func (client ComputeClient) ListImages(ctx context.Context, request ListImagesRequest) (response ListImagesResponse, err error) {
 	httpRequest, err := common.MakeDefaultHTTPRequestWithTaggedStruct(http.MethodGet, "/images/", request)
 	if err != nil {
@@ -596,7 +641,7 @@ func (client ComputeClient) ListImages(ctx context.Context, request ListImagesRe
 }
 
 // ListInstanceConsoleConnections Lists the console connections for the specified compartment or instance.
-// For more information about console access, see [Accessing the Instance Console]({{DOC_SERVER_URL}}/Content/Compute/References/serialconsole.htm).
+// For more information about console access, see Accessing the Instance Console (https://docs.us-phoenix-1.oraclecloud.com/Content/Compute/References/serialconsole.htm).
 func (client ComputeClient) ListInstanceConsoleConnections(ctx context.Context, request ListInstanceConsoleConnectionsRequest) (response ListInstanceConsoleConnectionsResponse, err error) {
 	httpRequest, err := common.MakeDefaultHTTPRequestWithTaggedStruct(http.MethodGet, "/instanceConsoleConnections", request)
 	if err != nil {
@@ -715,13 +760,20 @@ func (client ComputeClient) ListVolumeAttachments(ctx context.Context, request L
 // To delete the boot volume when the instance is deleted, specify `false` or do not specify a value for `PreserveBootVolumeQueryParam`.
 // This is an asynchronous operation. The instance's `lifecycleState` will change to TERMINATING temporarily
 // until the instance is completely removed.
-func (client ComputeClient) TerminateInstance(ctx context.Context, request TerminateInstanceRequest) (err error) {
+func (client ComputeClient) TerminateInstance(ctx context.Context, request TerminateInstanceRequest) (response TerminateInstanceResponse, err error) {
 	httpRequest, err := common.MakeDefaultHTTPRequestWithTaggedStruct(http.MethodDelete, "/instances/{instanceId}", request)
 	if err != nil {
 		return
 	}
 
-	_, err = client.Call(ctx, &httpRequest)
+	httpResponse, err := client.Call(ctx, &httpRequest)
+	defer common.CloseBodyIfValid(httpResponse)
+	response.RawResponse = httpResponse
+	if err != nil {
+		return
+	}
+
+	err = common.UnmarshalResponse(httpResponse, &response)
 	return
 }
 

@@ -406,7 +406,8 @@ func (c *client) DetachVolume(volumeAttachmentId string) error {
 	err := func() error {
 		ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
 		defer cancel()
-		return c.compute.DetachVolume(ctx, request)
+		_, err := c.compute.DetachVolume(ctx, request)
+		return err
 	}()
 	if err != nil {
 		return err

@@ -1,4 +1,4 @@
-// Copyright (c) 2016, 2017, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 // Code generated. DO NOT EDIT.
 
 package core
@@ -32,7 +32,7 @@ type GetConsoleHistoryContentResponse struct {
 	RawResponse *http.Response
 
 	// The string instance
-	Value *string `presentIn:"body"`
+	Value *string `presentIn:"body" encoding:"plain-text"`
 
 	// The number of bytes remaining in the snapshot.
 	OpcBytesRemaining *int `presentIn:"header" name:"opc-bytes-remaining"`
