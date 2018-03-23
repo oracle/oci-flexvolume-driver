@@ -64,22 +64,23 @@ type Interface interface {
 	// GetConfig returns the Config associated with the OCI API client.
 	GetConfig() *Config
 
-	// GetMountTargetForAD returns a mount target for a given AD
+	// GetMountTargetForAD returns a mount target for a given AD.
 	GetMountTargetForAD(AvailabilityDomain string) (*ffsw.MountTarget, error)
 
-	// GetFilesystem
+	// GetFilesystem returns the filesystem for a given id.
 	GetFileSystem(ocid string) (*ffsw.FileSystem, error)
 
-	// AttachFileSystemToMountTarget
+	// AttachFileSystemToMountTarget attaches the filesystem to the mount target.
 	AttachFileSystemToMountTarget(fileSystem *ffsw.FileSystem, mountTarget *ffsw.MountTarget, path string) error
 
-	// DetachFileSystemToMountTarget
+	// DetachFileSystemToMountTarget detaches the filesystem from the mount target.
+	// trjl: TODO rename? -> DetachFileSystemFromMountTarget
 	DetachFileSystemToMountTarget(fileSystem *ffsw.FileSystem, mountTarget *ffsw.MountTarget, path string) error
 
 	// GetMountTargetIPs gets the mount target private ip addresses
 	GetMountTargetIPs(mountTarget *ffsw.MountTarget) ([]core.PrivateIp, error)
 
-	// This checks to see if the filesystem is attached to the mounttarget
+	// GetMountTargetIPs checks to see if the filesystem is attached to the mounttarget
 	IsFileSystemAttached(fileSystem *ffsw.FileSystem, mountTarget *ffsw.MountTarget, path string) (bool, error)
 }
 

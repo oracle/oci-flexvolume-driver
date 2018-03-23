@@ -56,7 +56,7 @@ func (d OCIFilestorageDriver) Init() error {
 	return nil
 }
 
-// Claim returns true if this driver handles this ocid
+// Claim returns true if this driver handles this ocid.
 func (d OCIFilestorageDriver) Claim(volumeID string) bool {
 	if strings.HasPrefix(volumeID, ocidFilestoragePrefix) {
 		return true
@@ -91,10 +91,10 @@ func (d OCIFilestorageDriver) Attach(opts flexvolume.Options, nodeName string) f
 		log.Printf("Failed GetMountTargetIPs")
 		return flexvolume.Failf(err.Error())
 	}
-	log.Printf("Mount TargetIPs:%v", privateIps)
+	log.Printf("Mount TargetIPs: %v", privateIps)
 
 	if len(privateIps) == 0 {
-		return flexvolume.Failf("MountRarget:% has zero private IPs", *mountTarget.Id)
+		return flexvolume.Failf("mountTarget: % has zero private IPs", *mountTarget.Id)
 	}
 
 	// FIXME can I return IP:path???
@@ -138,7 +138,7 @@ func (d OCIFilestorageDriver) Detach(pvOrVolumeName, nodeName string) flexvolume
 	}
 
 	if len(privateIps) == 0 {
-		return flexvolume.Failf("MountRarget:% has zero private IPs", *mountTarget.Id)
+		return flexvolume.Failf("mountTarget: % has zero private IPs", *mountTarget.Id)
 	}
 
 	var path = fmt.Sprintf("/mnt/%s/%s", *privateIps[0].IpAddress, filesystemOCID)
@@ -151,8 +151,8 @@ func (d OCIFilestorageDriver) Detach(pvOrVolumeName, nodeName string) flexvolume
 	return flexvolume.Succeedf("Detach %s from %s", *filesystem.Id, *mountTarget.Id)
 }
 
-// WaitForAttach does nothing but return true as we have done the
-// wait in the mountdevice calls and this means that no creds are needed on worker nodes
+// WaitForAttach does nothing but return true as we have done the wait in the
+// mountdevice calls and this means that no creds are needed on worker nodes.
 func (d OCIFilestorageDriver) WaitForAttach(mountDevice string, _ flexvolume.Options) flexvolume.DriverStatus {
 	return flexvolume.DriverStatus{
 		Status: flexvolume.StatusSuccess,
@@ -189,7 +189,7 @@ func (d OCIFilestorageDriver) IsAttached(opts flexvolume.Options, nodeName strin
 	log.Printf("Mount TargetIPs:%v", privateIps)
 
 	if len(privateIps) == 0 {
-		return flexvolume.Failf("MountRarget:% has zero private IPs", *mountTarget.Id)
+		return flexvolume.Failf("nountTarget:% has zero private IPs", *mountTarget.Id)
 	}
 
 	var path = fmt.Sprintf("/mnt/%s/%s", *privateIps[0].IpAddress, filesystemOCID)
@@ -205,12 +205,12 @@ func (d OCIFilestorageDriver) IsAttached(opts flexvolume.Options, nodeName strin
 	}
 }
 
-// MountDevice mounts the NFSv3 volume
+// MountDevice mounts the NFSv3 volume.
 func (d OCIFilestorageDriver) MountDevice(mountDir, mountDevice string, opts flexvolume.Options) flexvolume.DriverStatus {
 
 	parts := strings.Split(mountDevice, "/")
 	IPaddress := parts[2]
-	source := fmt.Sprintf("%s:%s", IPaddress, mountDevice)
+	source := fmt.Sprintf("%s: %s", IPaddress, mountDevice)
 
 	mounter := mount.New("")
 
@@ -220,7 +220,7 @@ func (d OCIFilestorageDriver) MountDevice(mountDir, mountDevice string, opts fle
 		return flexvolume.Failf(err.Error())
 	}
 	if !notMnt {
-		return flexvolume.Failf("Already mount point")
+		return flexvolume.Failf("already mount point")
 	}
 	os.MkdirAll(mountDir, 0750)
 
@@ -231,14 +231,14 @@ func (d OCIFilestorageDriver) MountDevice(mountDir, mountDevice string, opts fle
 	//mountOptions := volume.JoinMountOptions(b.mountOptions, options)
 	err = mounter.Mount(source, mountDir, "nfs", options)
 	if err != nil {
-		log.Printf("Failed to mount:%s on %s", source, mountDir)
+		log.Printf("Failed to mount: %s on %s", source, mountDir)
 		return flexvolume.Failf(err.Error())
 	}
 
-	return flexvolume.Failf("MountDevice")
+	return flexvolume.Failf("mountDevice")
 }
 
-// UnmountDevice uumounts the NFSv3 volume
+// UnmountDevice unmounts the NFSv3 volume.
 func (d OCIFilestorageDriver) UnmountDevice(mountPath string) flexvolume.DriverStatus {
 	mounter := mount.New("")
 

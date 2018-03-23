@@ -16,13 +16,14 @@ package block
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"strings"
+
 	"github.com/oracle/oci-flexvolume-driver/pkg/flexvolume"
 	"github.com/oracle/oci-flexvolume-driver/pkg/iscsi"
 	"github.com/oracle/oci-flexvolume-driver/pkg/oci/client"
 	"github.com/oracle/oci-flexvolume-driver/pkg/oci/common"
-	"log"
-	"os"
-	"strings"
 
 	"github.com/oracle/oci-go-sdk/core"
 )
@@ -124,7 +125,7 @@ func (d OCIFlexvolumeDriver) Attach(opts flexvolume.Options, nodeName string) fl
 			return flexvolume.Failf(err.Error())
 		}
 		if *attachment.GetInstanceId() != *instance.Id {
-			return flexvolume.Failf("Already attached to instance: ", *instance.Id)
+			return flexvolume.Failf("already attached to instance: ", *instance.Id)
 		}
 	}
 
@@ -136,7 +137,7 @@ func (d OCIFlexvolumeDriver) Attach(opts flexvolume.Options, nodeName string) fl
 	log.Printf("attach: %s attached", *attachment.GetId())
 	iscsiAttachment, ok := attachment.(core.IScsiVolumeAttachment)
 	if !ok {
-		return flexvolume.Failf("Only ISCSI volume attachments are currently supported")
+		return flexvolume.Failf("only ISCSI volume attachments are currently supported")
 	}
 
 	return flexvolume.DriverStatus{
@@ -232,7 +233,7 @@ func (d OCIFlexvolumeDriver) MountDevice(mountDir, mountDevice string, opts flex
 	}
 
 	if !waitForPathToExist(mountDevice, 20) {
-		return flexvolume.Failf("Failed waiting for device to exist: ", mountDevice)
+		return flexvolume.Failf("failed waiting for device to exist: ", mountDevice)
 	}
 
 	options := []string{}
