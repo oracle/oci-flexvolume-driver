@@ -49,11 +49,31 @@ system-test:
     registry: https://wcr.io/v2
     username: $DOCKER_REGISTRY_USERNAME
     password: $DOCKER_REGISTRY_PASSWORD
+
   steps:
+    - script:
+      name: set ENV vars
+      code: |
+        export VERSION=$(cat dist/VERSION.txt)
+        echo "Pushing test version ${VERSION}"
+
+    - script:
+      name: prepare
+      code: |
+        mkdir /test
+        mv ./test/system /test/system
+
+    - internal/docker-push:
+      repository: wcr.io/oracle/oci-flexvolume-driver-test
+      tag: $VERSION
+      working-dir: /test/system
+      entrypoint: ./runner.py
+      user: 65534 # nobody
+
     - script:
         name: system test
         code: |
-          cd test/system
+          cd /test/system
           ./runner.py
 
 release:

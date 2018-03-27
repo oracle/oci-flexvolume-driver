@@ -1,0 +1,7 @@
+FROM wcr.io/oracle/oci-flexvolume-driver-system-test:1.0.0
+
+COPY test/system /test/system
+
+WORKDIR /test/system
+
+CMD ["./runner.py"]

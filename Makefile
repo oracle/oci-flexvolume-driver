@@ -22,6 +22,9 @@ BUILD := $(shell git describe --always --dirty)
 VERSION ?= ${BUILD}
 GOOS ?= linux
 GOARCH ?= amd64
+REGISTRY ?= wcr.io
+DOCKER_REGISTRY_USERNAME ?= oracle
+TEST_IMAGE ?= $(REGISTRY)/$(DOCKER_REGISTRY_USERNAME)/oci-flexvolume-driver-test
 
 SRC_DIRS := cmd pkg # directories which hold app source (not vendored)
 
@@ -72,6 +75,51 @@ build-integration-tests:
 	    -i \
 	    -o ${BIN_DIR}/integration-tests \
 	    ./test/integration
+
+.PHONY: build-test-image
+build-test-image:
+	docker build -t ${TEST_IMAGE}:${VERSION} -f Dockerfile.test .
+
+.PHONY: push-test-image
+push-test-image: build-test-image
+	docker login -u '$(DOCKER_REGISTRY_USERNAME)' -p '$(DOCKER_REGISTRY_PASSWORD)' $(REGISTRY)
+	docker push ${TEST_IMAGE}:${VERSION}
+
+.PHONY: system-test-config
+system-test-config:
+ifndef OCI_API_KEY
+ifndef OCI_API_KEY_VAR
+    $(error "OCI_API_KEY or OCI_API_KEY_VAR must be defined")
+else
+    $(eval OCI_API_KEY:=/tmp/oci_api_key.pem)
+    $(eval export OCI_API_KEY)
+    $(shell echo "$${OCI_API_KEY_VAR}" | openssl enc -base64 -d -A > $(OCI_API_KEY))
+endif
+endif
+ifndef INSTANCE_KEY
+ifndef INSTANCE_KEY_VAR
+    $(error "INSTANCE_KEY or INSTANCE_KEY_VAR must be defined")
+else
+    $(eval INSTANCE_KEY:=/tmp/instance_key)
+    $(eval export INSTANCE_KEY)
+    $(shell echo "$${INSTANCE_KEY_VAR}" | openssl enc -base64 -d -A > $(INSTANCE_KEY))
+    $(shell chmod 600 $(INSTANCE_KEY))
+endif
+endif
+
+.PHONY: system-test
+system-test: system-test-config
+	docker run -it \
+        -e OCI_API_KEY=$(OCI_API_KEY) \
+        -v $(OCI_API_KEY):$(OCI_API_KEY) \
+        -e INSTANCE_KEY=$(INSTANCE_KEY) \
+        -v $(INSTANCE_KEY):$(INSTANCE_KEY) \
+        -e MASTER_IP=$$MASTER_IP \
+        -e SLAVE0_IP=$$SLAVE0_IP \
+        -e SLAVE1_IP=$$SLAVE1_IP \
+        -e WERCKER_API_TOKEN=$$WERCKER_API_TOKEN \
+        -e HTTPS_PROXY=$$HTTPS_PROXY \
+        ${TEST_IMAGE}:${VERSION} ${TEST_IMAGE_ARGS}
 
 .PHONY: version
 version:
