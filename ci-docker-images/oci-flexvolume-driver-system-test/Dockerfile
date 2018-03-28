@@ -16,6 +16,7 @@ FROM ubuntu:16.04
 
 ARG TERRAFORM_VERSION=0.10.7
 ARG OCI_TERRAFORM_PROVIDER_VERSION="2.0.2"
+ARG KUBECTL_VERSION=v1.9.4
 
 # Installs the required dependencies.
 RUN apt-get update && apt-get install -y \
@@ -25,7 +26,10 @@ RUN apt-get update && apt-get install -y \
     python \
     software-properties-common \
     unzip \
-    wget
+    wget \
+    curl\
+    jq \
+    pwgen
 
 RUN apt-add-repository ppa:ansible/ansible \
     && apt-get update \
@@ -40,3 +44,8 @@ RUN mv terraform /usr/bin/
 RUN wget https://github.com/oracle/terraform-provider-oci/releases/download/${OCI_TERRAFORM_PROVIDER_VERSION}/linux.tar.gz
 RUN tar -xzvf linux.tar.gz -C /
 RUN echo "providers { oci = \"/linux_amd64/terraform-provider-oci_v${OCI_TERRAFORM_PROVIDER_VERSION}\" }" > ~/.terraformrc
+
+# Installs the kubectl client
+RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl
+RUN chmod +x ./kubectl
+RUN mv ./kubectl /usr/local/bin/kubectl

@@ -27,6 +27,8 @@ import time
 import urllib2
 import uuid
 
+
+TMP_KUBECONFIG = "/tmp/kubeconfig"
 TMP_OCI_API_KEY = "/tmp/oci_api_key.pem"
 TMP_INSTANCE_KEY = "/tmp/instance_key"
 DEBUG_FILE = "runner.log"
@@ -42,32 +44,41 @@ CI_BASE_URL = "https://app.wercker.com/api/v3"
 CI_PIPELINE_NAME = "system-test"
 
 
-def _check_env():
+def _check_env(args):
     should_exit = False
-    if "OCI_API_KEY" not in os.environ and "OCI_API_KEY_VAR" not in os.environ:
-        _log("Error. Can't find either OCI_API_KEY or OCI_API_KEY_VAR in the environment.")
-        should_exit = True
-    if "INSTANCE_KEY" not in os.environ and "INSTANCE_KEY_VAR" not in os.environ:
-        _log("Error. Can't find either INSTANCE_KEY or INSTANCE_KEY_VAR in the environment.")
-        should_exit = True
-    if "MASTER_IP" not in os.environ:
-        _log("Error. Can't find MASTER_IP in the environment.")
-        should_exit = True
-    if "SLAVE0_IP" not in os.environ:
-        _log("Error. Can't find SLAVE0_IP in the environment.")
-        should_exit = True
-    if "SLAVE1_IP" not in os.environ:
-        _log("Error. Can't find SLAVE1_IP in the environment.")
-        should_exit = True
-    if "WERCKER_API_TOKEN" not in os.environ:
-        _log("Error. Can't find WERCKER_API_TOKEN in the environment.")
-        should_exit = True
+    if args['create_using_oci']:
+        if "OCI_API_KEY" not in os.environ and "OCI_API_KEY_VAR" not in os.environ:
+            _log("Error. Can't find either OCI_API_KEY or OCI_API_KEY_VAR in the environment.")
+            should_exit = True
+    if args['enforce_cluster_locking']:
+        if "INSTANCE_KEY" not in os.environ and "INSTANCE_KEY_VAR" not in os.environ:
+            _log("Error. Can't find either INSTANCE_KEY or INSTANCE_KEY_VAR in the environment.")
+            should_exit = True
+    if args['enforce_cluster_locking'] or args['install']:
+        if "MASTER_IP" not in os.environ:
+            _log("Error. Can't find MASTER_IP in the environment.")
+            should_exit = True
+        if "SLAVE0_IP" not in os.environ:
+            _log("Error. Can't find SLAVE0_IP in the environment.")
+            should_exit = True
+        if "SLAVE1_IP" not in os.environ:
+            _log("Error. Can't find SLAVE1_IP in the environment.")
+            should_exit = True
+        if "VCN" not in os.environ:
+            _log("Error. Can't find VCN in the environment.")
+            should_exit = True
+    if args['enforce_cluster_locking']:
+        if "WERCKER_API_TOKEN" not in os.environ:
+            _log("Error. Can't find WERCKER_API_TOKEN in the environment.")
+            should_exit = True
 
     if should_exit:
         sys.exit(1)
 
 
 def _create_key_files():
+    if "KUBECONFIG_VAR" in os.environ:
+        _run_command("echo \"$KUBECONFIG_VAR\" | openssl enc -base64 -d -A > " + TMP_KUBECONFIG, ".")
     if "OCI_API_KEY_VAR" in os.environ:
         _run_command("echo \"$OCI_API_KEY_VAR\" | openssl enc -base64 -d -A > " + TMP_OCI_API_KEY, ".")
         _run_command("chmod 600 " + TMP_OCI_API_KEY, ".")
@@ -171,14 +182,16 @@ def _wait_for_cluster(instance_ip):
 
 
 def _destroy_key_files():
+    if "KUBECONFIG_VAR" in os.environ:
+        os.remove(TMP_KUBECONFIG)
     if "OCI_API_KEY_VAR" in os.environ:
         os.remove(TMP_OCI_API_KEY)
     if "INSTANCE_KEY_VAR" in os.environ:
         os.remove(TMP_INSTANCE_KEY)
 
 
-def _get_oci_api_key_file():
-    return os.environ['OCI_API_KEY'] if "OCI_API_KEY" in os.environ else TMP_OCI_API_KEY
+def _get_kubeconfig_file():
+    return os.environ['KUBECONFIG'] if "KUBECONFIG" in os.environ else TMP_KUBECONFIG
 
 
 def _get_instance_key_file():
@@ -272,18 +285,18 @@ def _get_cluster_ips():
     return os.environ['MASTER_IP'], [os.environ['SLAVE0_IP'], os.environ['SLAVE1_IP']]
 
 
-def _get_volume_name(terraform_env):
-    output = _terraform("output -json", TERRAFORM_DIR, terraform_env)
-    jsn = json.loads(output)
-    ocid = jsn["volume_ocid"]["value"].split('.')
-    return ocid[len(ocid) - 1]
-
-
-def _scp(instance_ip, src, dest):
-    return "scp -o UserKnownHostsFile=/dev/null " + \
-           "-o LogLevel=quiet " + \
-           "-o StrictHostKeyChecking=no " + \
-           "-i " + _get_instance_key_file() + " " + src + " opc@" + instance_ip + ":" + dest
+def _kubectl(action, exit_on_error=True, display_errors=True, log_stdout=True):
+    if "KUBECONFIG" not in os.environ and "KUBECONFIG_VAR" not in os.environ:
+        (stdout, _, returncode) = _run_command("kubectl " + action, ".", display_errors)
+    else:
+        (stdout, _, returncode) = _run_command("KUBECONFIG=" + _get_kubeconfig_file() + \
+                " kubectl " + action, ".", display_errors)
+    if exit_on_error and returncode != 0:
+        _log("Error running kubectl")
+        sys.exit(1)
+    if log_stdout:
+        _log(stdout)
+    return stdout
 
 
 def _ssh(instance_ip, cmd):
@@ -294,13 +307,30 @@ def _ssh(instance_ip, cmd):
            "\"bash --login -c \'" + cmd + "\'\""
 
 
-def _create_rc_yaml(volume_name):
-    with open("replication-controller.yaml.template", "r") as sources:
+def _patch_template_file(infile, outfile, volume_name, test_id):
+    with open(infile, "r") as sources:
         lines = sources.readlines()
-    with open("replication-controller.yaml", "w") as sources:
+    with open(outfile + "." + test_id, "w") as sources:
         for line in lines:
-            sources.write(re.sub('{{VOLUME_NAME}}', volume_name, line))
-    return "replication-controller.yaml"
+            patched_line = line
+            if volume_name is not None:
+                patched_line = re.sub('{{VOLUME_NAME}}', volume_name, patched_line)
+            patched_line = re.sub('{{TEST_ID}}', test_id, patched_line)
+            sources.write(patched_line)
+    return outfile + "." + test_id
+
+
+def _create_replication_controller_yaml(using_oci, volume_name, test_id):
+    if using_oci:
+        return _patch_template_file(
+            "replication-controller.yaml.template",
+            "replication-controller.yaml",
+            volume_name, test_id)
+    else:
+        return _patch_template_file(
+            "replication-controller-with-volume-claim.yaml.template",
+            "replication-controller-with-volume-claim.yaml",
+            volume_name, test_id)
 
 
 def _ansible_inventory(master, workers):
@@ -320,18 +350,24 @@ def _install_driver():
     with open("ansible_inventory", "w") as inventory:
         inventory.write(_ansible_inventory(master, workers))
 
-    _run_command("ansible-playbook " +
-                 "-i ansible_inventory " +
-                 "--private-key " + TMP_INSTANCE_KEY +
-                 " playbook.yaml", ".")
+    (stdout, stderr, returncode) = _run_command(
+        "ansible-playbook " +
+        "-i ansible_inventory " +
+        "--private-key " + TMP_INSTANCE_KEY +
+        " playbook.yaml", ".")
+    _log(stdout)
+    if returncode != 0:
+        _log("Error running ansible")
+        _log(stderr)
+        sys.exit(1)
 
 
-def _get_pod_infos(instance_ip):
-    (stdout, _, _) = _run_command(_ssh(instance_ip, "kubectl get pods -o wide"), ".")
+def _get_pod_infos(test_id):
+    stdout = _kubectl("get pods -o wide", log_stdout=False)
     infos = []
     for line in stdout.split("\n"):
         line_array = line.split()
-        if re.match(r"nginx-controller-.*", line):
+        if re.match(r"nginx-controller-" + test_id + ".*", line):
             name = line_array[0]
             status = line_array[2]
             node = line_array[6]
@@ -339,8 +375,8 @@ def _get_pod_infos(instance_ip):
     return infos
 
 
-def _wait_for_pod_status(instance_ip, desired_status):
-    infos = _get_pod_infos(instance_ip)
+def _wait_for_pod_status(desired_status, test_id):
+    infos = _get_pod_infos(test_id)
     num_polls = 0
     while not any(i[1] == desired_status for i in infos):
         for i in infos:
@@ -353,23 +389,64 @@ def _wait_for_pod_status(instance_ip, desired_status):
                      "failed to achieve status: " + desired_status + "." +
                      "Final status was: " + i[1])
             sys.exit(1)
-        infos = _get_pod_infos(instance_ip)
-    return (infos[0][0], infos[0][1], infos[0][2])
+        infos = _get_pod_infos(test_id)
+    for i in infos:
+        if i[1] == desired_status:
+            return (i[0], i[1], i[2])
+    # Should never get here.
+    return (None, None, None)
+
+
+def _get_volume_name(terraform_env):
+    output = _terraform("output -json", TERRAFORM_DIR, terraform_env)
+    jsn = json.loads(output)
+    ocid = jsn["volume_ocid"]["value"].split('.')
+    return ocid[len(ocid) - 1]
+
+
+def _cluster_check():
+    regions = []
+    nodes_json = _kubectl("get nodes -o json", log_stdout=False)
+    nodes = json.loads(nodes_json)
+    for node in nodes['items']:
+        regions.append(node['metadata']['labels']['failure-domain.beta.kubernetes.io/zone'])
+    if len(set(regions)) != 1:
+        _log("Error: This test requires a cluster with a single region")
+        sys.exit(1)
+    if len(regions) < 2:
+        _log("Error: This test requires a cluster with at least 2 instances")
+        sys.exit(1)
 
 
 def _main():
     _reset_debug_file()
     parser = argparse.ArgumentParser(description='System test runner for the OCI Block Volume flexvolume driver')
+    parser.add_argument('--no-cluster-check',
+                        help='Disable the check that tests if the cluster has the correct shape to run this test',
+                        action='store_true',
+                        default=False)
     parser.add_argument('--no-create',
                         help='Disable the creation of the test volume',
                         action='store_true',
                         default=False)
-    parser.add_argument('--no-setup',
-                        help='Dont sync the driver + test files to the test instance',
+    parser.add_argument('--create-using-oci',
+                        help='If we are creating the test volume, then create it directly via OCI (i.e. dont use the volume provisioner)',
+                        action='store_true',
+                        default=False)
+    parser.add_argument('--enforce-cluster-locking',
+                        help='Enforce cluster locking such that only one instance of the test can be run at once',
+                        action='store_true',
+                        default=False)
+    parser.add_argument('--install',
+                        help='Install the flexvolume driver in the cluster',
                         action='store_true',
                         default=False)
     parser.add_argument('--no-test',
                         help='Dont run the tests on the test cluster',
+                        action='store_true',
+                        default=False)
+    parser.add_argument('--destructive',
+                        help='Run the tests in destructive mode (i.e. nodes are cordoned/uncordoned)',
                         action='store_true',
                         default=False)
     parser.add_argument('--no-destroy',
@@ -378,97 +455,101 @@ def _main():
                         default=False)
     args = vars(parser.parse_args())
 
-    _check_env()
-
+    _check_env(args)
     _create_key_files()
     atexit.register(_destroy_key_files)
 
-    _log("Finding the cluster IPs", as_banner=True)
-    (master_ip, slave_ips) = _get_cluster_ips()
-    _log("Master IP: " + master_ip)
-    for slave_ip in slave_ips:
-        _log("Slave IP: " + slave_ip)
+    test_id = str(uuid.uuid4())[:8]
 
-    _log("Waiting for the cluster to be available", as_banner=True)
-    _wait_for_cluster(master_ip)
-    def _delete_lock_file_atexit():
-        if not _delete_lock_file(master_ip):
-            _log("Error. Failed to delete lockfile: " + LOCKFILE)
-            sys.exit(1)
-    atexit.register(_delete_lock_file_atexit)
+    if not args['no_cluster_check']:
+        _cluster_check()
+
+    if args['enforce_cluster_locking']:
+        _log("Waiting for the cluster to be available", as_banner=True)
+        (master_ip, _) = _get_cluster_ips()
+        _wait_for_cluster(master_ip)
+        def _delete_lock_file_atexit():
+            if not _delete_lock_file(master_ip):
+                _log("Error. Failed to delete lockfile: " + LOCKFILE)
+                sys.exit(1)
+        atexit.register(_delete_lock_file_atexit)
 
     terraform_env = _get_terraform_env()
 
     if not args['no_create']:
-        _log("Creating test volume", as_banner=True)
-        _terraform("init", TERRAFORM_DIR, terraform_env)
-        _terraform("apply", TERRAFORM_DIR, terraform_env)
+        if args['create_using_oci']:
+            _log("Creating test volume (using terraform)", as_banner=True)
+            _terraform("init", TERRAFORM_DIR, terraform_env)
+            _terraform("apply", TERRAFORM_DIR, terraform_env)
+            _log(_terraform("output -json", TERRAFORM_DIR, terraform_env))
+
     if not args['no_destroy']:
         def _destroy_test_volume_atexit():
-            _log("Destroying test volume", as_banner=True)
-            _terraform("destroy -force", TERRAFORM_DIR, terraform_env)
+            if args['create_using_oci']:
+                _log("Destroying test volume (using terraform)", as_banner=True)
+                _terraform("destroy -force", TERRAFORM_DIR, terraform_env)
         atexit.register(_destroy_test_volume_atexit)
 
-    _log("Finding the volume name", as_banner=True)
-    volume_name = _get_volume_name(terraform_env)
-    _log("Volume Name: " + volume_name)
+    if args['create_using_oci']:
+        replication_controller = _create_replication_controller_yaml(
+            True, _get_volume_name(terraform_env), test_id)
+    else:
+        replication_controller = _create_replication_controller_yaml(
+            False, None, test_id)
 
-    if not args['no_setup']:
+    if args['install']:
         _log("Installing flexvolume driver on all of the the nodes", as_banner=True)
         _install_driver()
         time.sleep(30)  # wait for Docker to come back up
-
-        _log("Syncing test resources to the master", as_banner=True)
-        _run_command(_scp(master_ip, _create_rc_yaml(volume_name), "/home/opc"), ".")
 
     if not args['no_test']:
         _log("Running system test: ", as_banner=True)
 
         _log("Starting the replication controller (creates a single nginx pod).")
-        _run_command(_ssh(master_ip, "kubectl delete -f replication-controller.yaml"), ".", display_errors=False)
-        _run_command(_ssh(master_ip, "kubectl create -f replication-controller.yaml"), ".")
+        _kubectl("delete -f " + replication_controller, exit_on_error=False, display_errors=False)
+        _kubectl("create -f " + replication_controller)
 
         _log("Waiting for the pod to start.")
-        (podname1, _, node1) = _wait_for_pod_status(master_ip, "Running")
+        (podname1, _, node1) = _wait_for_pod_status("Running", test_id)
 
         _log("Writing a file to the flexvolume mounted in the pod.")
-        _run_command(_ssh(master_ip, "kubectl exec " + podname1 +
-                                     " -- touch /usr/share/nginx/html/hello.txt"), ".")
+        _kubectl("exec " + podname1 + " -- touch /usr/share/nginx/html/hello.txt")
 
         _log("Does the new file exist?")
-        (stdout, _, _) = _run_command(_ssh(master_ip, "kubectl exec " + podname1 +
-                                                      " -- ls /usr/share/nginx/html"), ".")
+        stdout = _kubectl("exec " + podname1 + " -- ls /usr/share/nginx/html")
         if "hello.txt" not in stdout.split("\n"):
             _log("Error: Failed to find file hello.txt in mounted volume")
             sys.exit(1)
         _log("Yes it does!")
 
-        _log("Marking the current node as unschedulable.")
-        _run_command(_ssh(master_ip, "kubectl cordon " + node1), ".")
+        if args['destructive']:
+            _log("Marking the current node as unschedulable.")
+            _kubectl("cordon " + node1)
 
-        _log("Deleting the pod. This should cause it to be started on the other node.")
-        _run_command(_ssh(master_ip, "kubectl delete pod " + podname1), ".")
+        _log("Deleting the pod. This should cause it to be restarted (possibly on another node).")
+        _kubectl("delete pod " + podname1)
 
-        _log("Waiting for the pod to start (on the other node).")
-        (podname2, _, node2) = _wait_for_pod_status(master_ip, "Running")
+        _log("Waiting for the pod to start (possibly on the other node).")
+        (podname2, _, node2) = _wait_for_pod_status("Running", test_id)
 
-        if node1 == node2:
-            _log("Error: Pod failed to appear on the other slave after being deleted/restarted.")
-            sys.exit(1)
+        if args['destructive']:
+            if node1 == node2:
+                _log("Error: Pod failed to appear on the other node after being deleted/restarted.")
+                sys.exit(1)
 
         _log("Does the new file still exist?")
-        (stdout, _, _) = _run_command(_ssh(master_ip, "kubectl exec " + podname2 +
-                                                      " -- ls /usr/share/nginx/html"), ".")
+        stdout = _kubectl("exec " + podname2 + " -- ls /usr/share/nginx/html")
         if "hello.txt" not in stdout.split("\n"):
             _log("Error: Failed to find file hello.txt in mounted volume")
             sys.exit(1)
         _log("Yes it does!")
 
         _log("Deleteing the replication controller (deletes the single nginx pod).")
-        _run_command(_ssh(master_ip, "kubectl delete rc nginx-controller"), ".")
+        _kubectl("delete -f " + replication_controller)
 
-        _log("Adding the origional node back into the cluster.")
-        _run_command(_ssh(master_ip, "kubectl uncordon " + node1), ".")
+        if args['destructive']:
+            _log("Adding the original node back into the cluster.")
+            _kubectl("uncordon " + node1)
 
 
 if __name__ == "__main__":

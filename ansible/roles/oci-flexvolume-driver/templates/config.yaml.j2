@@ -5,3 +5,4 @@ auth:
   key: |
     {{ lookup('file', oci_key_file) | indent(width=4) }}
   fingerprint: {{ oci_fingerprint }}
+  vcn: {{ oci_vcn }}

@@ -1,0 +1,38 @@
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: oci-flexvolume-driver-system-test-{{TEST_ID}}
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: oci-flexvolume-driver-system-test-{{TEST_ID}}
+subjects:
+  - kind: ServiceAccount
+    name: oci-flexvolume-driver-system-test-{{TEST_ID}}
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: oci-flexvolume-driver-system-test-{{TEST_ID}}
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: ServiceAccount
+apiVersion: v1
+metadata:
+  name: oci-flexvolume-driver-system-test-{{TEST_ID}}
+  namespace: default
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: flexvolume-driver-system-test-{{TEST_ID}}
+spec:
+  serviceAccountName: oci-flexvolume-driver-system-test-{{TEST_ID}}
+  containers:
+  - name: flexvolume-driver-system-test
+    image: wcr.io/{{DOCKER_REGISTRY_USERNAME}}/oci-flexvolume-driver-test:{{VERSION}}
+  restartPolicy: Never

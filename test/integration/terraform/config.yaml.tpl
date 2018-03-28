@@ -5,3 +5,4 @@ auth:
   key: |
     ${key}
   fingerprint: 2c:29:18:b4:86:a5:d4:02:07:f4:41:6f:7d:64:02:11
+  vcn: ocid1.vcn.oc1.phx.aaaaaaaaqh26l5f3bvnjz5wmelm6vntqotm42er6wrsy4nllovdtzpemcsyq

@@ -1,5 +1,7 @@
-FROM wcr.io/oracle/oci-flexvolume-driver-system-test:1.0.0
+FROM wcr.io/oracle/oci-flexvolume-driver-system-test:1.0.2
 
+COPY ansible /ansible
+COPY dist /dist
 COPY test/system /test/system
 
 WORKDIR /test/system
