@@ -8,6 +8,7 @@
       # see TMP_OCI_API_KEY in runner.py
       oci_key_file: "/tmp/oci_api_key.pem"
       oci_flexvolume_driver_mode: master
+      oci_vcn: "{{ lookup('env','VCN') }}"
       become: true
   tasks:
     - name: restart controller

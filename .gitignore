@@ -30,6 +30,7 @@ test/system/terraform/terraform.tfstate.backup
 test/system/ansible_inventory
 test/system/replication-controller.yaml
 test/system/runner.log
+test/system/run-test-image.yaml*
 
 *.retry
 ansible/hosts

@@ -5,3 +5,4 @@ auth:
   key: |
     ${key}
   fingerprint: 2c:29:18:b4:86:a5:d4:02:07:f4:41:6f:7d:64:02:11
+  vcn: ${vcn}

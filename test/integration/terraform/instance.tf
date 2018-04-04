@@ -6,6 +6,10 @@ variable "ssh_private_key" {
   default = ""
 }
 
+variable "vcn" {
+  default = ""
+}
+
 variable subnet_ocid {
   default = "ocid1.subnet.oc1.phx.aaaaaaaab7gsl5sqgnxhrjwsg2ztk73c7thwnfzgtkof7h6umoby6e7yaj7q"
 }
@@ -46,6 +50,7 @@ data "template_file" "driver_config" {
   template = "${file("${path.module}/config.yaml.tpl")}"
   vars {
       key = "${ indent(4, file("${path.module}/_tmp/oci_api_key.pem")) }"
+      vcn = "${var.vcn}"
   }
 }
 

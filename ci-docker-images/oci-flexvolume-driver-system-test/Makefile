@@ -15,7 +15,7 @@
 DOCKER_REPO ?= wcr.io
 DOCKER_USER ?= oracle
 DOCKER_IMAGE_NAME ?= oci-flexvolume-driver-system-test
-VERSION ?= 1.0.0
+VERSION ?= 1.0.3
 IMAGE ?= ${DOCKER_REPO}/${DOCKER_USER}/${DOCKER_IMAGE_NAME}
 
 .PHONY: build

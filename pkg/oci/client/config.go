@@ -176,6 +176,9 @@ func validateConfig(c *Config) field.ErrorList {
 	if c.Auth.Fingerprint == "" {
 		errList = append(errList, field.Required(field.NewPath("fingerprint"), ""))
 	}
+	if c.Auth.VcnOCID == "" {
+		errList = append(errList, field.Required(field.NewPath("vcn"), ""))
+	}
 
 	return errList
 }
