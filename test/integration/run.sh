@@ -111,7 +111,7 @@ chmod 600 _tmp/oci_api_key.pem
 
 export TF_VAR_ssh_public_key="$(cat _tmp/instance_key.pub)"
 export TF_VAR_ssh_private_key="$(cat _tmp/instance_key)"
-
+export TF_VAR_vcn=$VCN
 export TF_VAR_test_id="flexvolume-driver-integration-$(date '+%Y-%m-%d-%H-%M')"
 
 # Provision OCI instance and block storage volume for test.
