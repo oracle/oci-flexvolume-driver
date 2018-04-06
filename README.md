@@ -108,7 +108,7 @@ You can set these in the environment to override the default values.
 This guide will walk you through creating a Pod with persistent storage. It assumes
 that you have already installed the flexvolume driver in your cluster.
 
-See [examples/nginx.yaml](examples/nginx.yaml) for a finished Kubernetes manifest that ties all these concepts
+See [example/nginx.yaml](example/nginx.yaml) for a finished Kubernetes manifest that ties all these concepts
 together.
 
 1. Create a block storage volume. This can be done using the `oci` [CLI][5] as follows:
