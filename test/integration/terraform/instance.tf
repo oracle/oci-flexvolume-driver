@@ -17,7 +17,7 @@ variable subnet_ocid {
 # Gets the OCID of the OS image to use
 data "oci_core_images" "os_image_ocid" {
   compartment_id = "${var.compartment_ocid}"
-  display_name   = "Oracle-Linux-7.4-2018.01.10-0"
+  display_name   = "Oracle-Linux-7.4-2018.02.21-1"
 }
 
 resource "oci_core_instance" "instance" {
