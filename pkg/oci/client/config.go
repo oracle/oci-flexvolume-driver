@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"strings"
 
@@ -44,7 +45,8 @@ type AuthConfig struct {
 	CompartmentOCID      string `yaml:"compartment"`
 	UserOCID             string `yaml:"user"`
 	PrivateKey           string `yaml:"key"`
-	PrivateKeyPassphrase string `yaml:"key_passphase"`
+	Passphrase           string `yaml:"passphrase"`
+	PrivateKeyPassphrase string `yaml:"key_passphrase"` // DEPRECIATED
 	Fingerprint          string `yaml:"fingerprint"`
 	VcnOCID              string `yaml:"vcn"`
 }
@@ -116,6 +118,12 @@ func (c *Config) setDefaults() error {
 	if err != nil {
 		return fmt.Errorf("setting config region fields: %v", err)
 	}
+
+	if c.Auth.Passphrase == "" && c.Auth.PrivateKeyPassphrase != "" {
+		log.Print("config: auth.key_passphrase is DEPRECIATED and will be removed in a later release. Please set auth.passphrase instead.")
+		c.Auth.Passphrase = c.Auth.PrivateKeyPassphrase
+	}
+
 	return nil
 }
 

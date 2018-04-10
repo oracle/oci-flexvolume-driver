@@ -88,6 +88,7 @@ auth:
     -----BEGIN RSA PRIVATE KEY-----
     <snip>
     -----END RSA PRIVATE KEY-----
+  passphrase: my secret passphrase
   fingerprint: d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e
   vcn: ocid1.vcn.oc1.phx.aaaaaaaaqiqmei4yen2fuyqaiqfcejpguqs6tuaf2n2iaxiwf5cfji2s636a
 ```

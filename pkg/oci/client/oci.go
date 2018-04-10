@@ -91,7 +91,7 @@ func New(configPath string) (Interface, error) {
 		config.Auth.Region,
 		config.Auth.Fingerprint,
 		config.Auth.PrivateKey,
-		&config.Auth.PrivateKeyPassphrase,
+		&config.Auth.Passphrase,
 	)
 	computeClient, err := core.NewComputeClientWithConfigurationProvider(configProvider)
 	if err != nil {
