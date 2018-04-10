@@ -46,7 +46,7 @@ type AuthConfig struct {
 	UserOCID             string `yaml:"user"`
 	PrivateKey           string `yaml:"key"`
 	Passphrase           string `yaml:"passphrase"`
-	PrivateKeyPassphrase string `yaml:"key_passphrase"` // DEPRECIATED
+	PrivateKeyPassphrase string `yaml:"key_passphase"` // DEPRECIATED
 	Fingerprint          string `yaml:"fingerprint"`
 	VcnOCID              string `yaml:"vcn"`
 }
