@@ -405,15 +405,15 @@ def _get_volume_name(terraform_env):
 
 
 def _cluster_check():
-    regions = []
+    availabilityDomains = []
     nodes_json = _kubectl("get nodes -o json", log_stdout=False)
     nodes = json.loads(nodes_json)
     for node in nodes['items']:
-        regions.append(node['metadata']['labels']['failure-domain.beta.kubernetes.io/zone'])
-    if len(set(regions)) != 1:
+        availabilityDomains.append(node['metadata']['labels']['failure-domain.beta.kubernetes.io/zone'])
+    if len(set(availabilityDomains)) != 1:
         _log("Error: This test requires a cluster with a single region")
         sys.exit(1)
-    if len(regions) < 2:
+    if len(availabilityDomains) < 2:
         _log("Error: This test requires a cluster with at least 2 instances")
         sys.exit(1)
 
@@ -421,8 +421,8 @@ def _cluster_check():
 def _main():
     _reset_debug_file()
     parser = argparse.ArgumentParser(description='System test runner for the OCI Block Volume flexvolume driver')
-    parser.add_argument('--no-cluster-check',
-                        help='Disable the check that tests if the cluster has the correct shape to run this test',
+    parser.add_argument('--cluster-check',
+                        help='Enable the check that tests if the cluster has the correct shape to run this test',
                         action='store_true',
                         default=False)
     parser.add_argument('--no-create',
@@ -461,7 +461,7 @@ def _main():
 
     test_id = str(uuid.uuid4())[:8]
 
-    if not args['no_cluster_check']:
+    if args['cluster_check']:
         _cluster_check()
 
     if args['enforce_cluster_locking']:
