@@ -68,7 +68,7 @@ system-test:
         name: system test
         code: |
           cd /test/system
-          ./runner.py --no-cluster-check --create-using-oci --enforce-cluster-locking --install --destructive
+          ./runner.py --cluster-check --create-using-oci --enforce-cluster-locking --install --destructive
 
 validate-test-image:
   box:
