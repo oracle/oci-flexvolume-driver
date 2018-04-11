@@ -103,7 +103,7 @@ You can set these in the environment to override the default values.
 * `OCI_FLEXD_DRIVER_DIRECTORY` - Directory where the driver binary lives (Default:
 `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci`)
 
-# OCI Policies
+## OCI Policies
 
 When providing OCI auth credentials, you must ensure the user (or group) associated with the credentials has the following permissions:
 
