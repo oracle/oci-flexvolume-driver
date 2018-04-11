@@ -64,8 +64,7 @@ node in your Kubernetes cluster at the following location:
 `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci/oci`.
 
 NOTE: If running kube-controller-managers in a container you _must_ ensure that
-the plugin directory is mounted into the container. See:
-https://gitlab-odx.oracle.com/odx/oke-prime/merge_requests/15 for specifics.
+the plugin directory is mounted into the container.
 
 #### Configuration
 
