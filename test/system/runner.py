@@ -333,33 +333,9 @@ def _create_replication_controller_yaml(using_oci, volume_name, test_id):
             volume_name, test_id)
 
 
-def _ansible_inventory(master, workers):
-    contents = (
-        "[masters]\n"
-        "{master_ip} ansible_user=opc\n"
-        "\n"
-        "[workers]\n").format(master_ip=master)
-    for worker in workers:
-        contents += "{ip} ansible_user=opc\n".format(ip=worker)
-
-    return contents
-
-
 def _install_driver():
-    master, workers = _get_cluster_ips()
-    with open("ansible_inventory", "w") as inventory:
-        inventory.write(_ansible_inventory(master, workers))
-
-    (stdout, stderr, returncode) = _run_command(
-        "ansible-playbook " +
-        "-i ansible_inventory " +
-        "--private-key " + TMP_INSTANCE_KEY +
-        " playbook.yaml", ".")
-    _log(stdout)
-    if returncode != 0:
-        _log("Error running ansible")
-        _log(stderr)
-        sys.exit(1)
+    # change this to kubectl apply
+    stdout = _kubectl("apply -f /dist/oci-flexvolume-driver.yaml")
 
 
 def _get_pod_infos(test_id):

@@ -31,10 +31,6 @@ RUN apt-get update && apt-get install -y \
     jq \
     pwgen
 
-RUN apt-add-repository ppa:ansible/ansible \
-    && apt-get update \
-    && apt-get install -y ansible
-
 # Installs terraform.
 RUN wget https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip
 RUN unzip terraform_${TERRAFORM_VERSION}_linux_amd64.zip
