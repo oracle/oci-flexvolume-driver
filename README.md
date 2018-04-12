@@ -101,6 +101,8 @@ You can set these in the environment to override the default values.
 * `OCI_FLEXD_DRIVER_LOG_DIR` - Directory where the log file is written (Default: `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci`)
 * `OCI_FLEXD_DRIVER_DIRECTORY` - Directory where the driver binary lives (Default:
 `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci`)
+* `OCI_FLEXD_CONFIG_DIRECTORY` - Directory where the driver configuration lives (Default:
+`/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci`)
 
 ## Tutorial
 

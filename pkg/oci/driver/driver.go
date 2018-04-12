@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/oracle/oci-flexvolume-driver/pkg/flexvolume"
@@ -50,7 +51,12 @@ func GetDriverDirectory() string {
 
 // GetConfigPath gets the path to the OCI API credentials.
 func GetConfigPath() string {
-	return GetDriverDirectory() + "/config.yaml"
+	path := os.Getenv("OCI_FLEXD_CONFIG_DIRECTORY")
+	if path != "" {
+		return filepath.Join(path, "config.yaml")
+	}
+
+	return filepath.Join(GetDriverDirectory(), "config.yaml")
 }
 
 // Init checks that we have the appropriate credentials and metadata API access
