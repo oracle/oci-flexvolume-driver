@@ -14,7 +14,10 @@
 
 package driver
 
-import "testing"
+import (
+	"os"
+	"testing"
+)
 
 var volumeOCIDTests = []struct {
 	regionKey  string
@@ -32,5 +35,46 @@ func TestDeriveVolumeOCID(t *testing.T) {
 		if result != tt.expected {
 			t.Errorf("Failed to derive OCID. Expected %s got %s", tt.expected, result)
 		}
+	}
+}
+
+func TestGetConfigPath(t *testing.T) {
+	testCases := map[string]struct {
+		envvar   string
+		value    string
+		expected string
+	}{
+		"default": {
+			envvar:   "",
+			value:    "",
+			expected: "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci/config.yaml",
+		},
+		"custom config dir": {
+			envvar:   "OCI_FLEXD_CONFIG_DIRECTORY",
+			value:    "/foo/bar/",
+			expected: "/foo/bar/config.yaml",
+		},
+		"custom driver dir": {
+			envvar:   "OCI_FLEXD_DRIVER_DIRECTORY",
+			value:    "/foo/baz",
+			expected: "/foo/baz/config.yaml",
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			// idk if we need this but figure it can't hurt
+			original := os.Getenv(tc.envvar)
+			defer os.Setenv(tc.envvar, original)
+
+			// set env var value for the test.
+			os.Setenv(tc.envvar, tc.value)
+
+			result := GetConfigPath()
+			if result != tc.expected {
+				t.Errorf("GetDriverDirectory() = %q ; wanted %q", result, tc.expected)
+			}
+		})
+
 	}
 }
