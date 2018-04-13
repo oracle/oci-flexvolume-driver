@@ -25,7 +25,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/oracle/oci-flexvolume-driver/pkg/oci/client/cache"
@@ -212,13 +211,61 @@ func (c *client) getAllSubnetsForVNC() (*[]core.Subnet, error) {
 	return &subnetList, nil
 }
 
-func (c *client) isVnicAttachmentInSubnets(vnicAttachment *core.VnicAttachment, subnets *[]core.Subnet) bool {
+func (c *client) getVnicAttachmentInSubnet(vnicAttachment *core.VnicAttachment, subnets *[]core.Subnet) *core.Subnet {
 	for _, subnet := range *subnets {
 		if *vnicAttachment.SubnetId == *subnet.Id {
-			return true
+			return &subnet
 		}
 	}
-	return false
+	return nil
+}
+
+func (c *client) getVCN() (*core.Vcn, error) {
+	response, err := func() (core.GetVcnResponse, error) {
+		ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+		defer cancel()
+		return c.network.GetVcn(ctx, core.GetVcnRequest{VcnId: &c.config.Auth.VcnOCID})
+
+	}()
+	if err != nil {
+		return nil, err
+	}
+	return &response.Vcn, nil
+}
+
+func (c *client) getVnic(cache *cache.OCICache, vnicId string) (*core.Vnic, error) {
+	vnic, ok := cache.GetVnic(vnicId)
+	if !ok {
+		vnicRequest := core.GetVnicRequest{
+			VnicId: &vnicId,
+		}
+		vnicResponse, err := func() (core.GetVnicResponse, error) {
+			ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+			defer cancel()
+			return c.network.GetVnic(ctx, vnicRequest)
+		}()
+		if err != nil {
+			return nil, err
+		}
+		vnic = &vnicResponse.Vnic
+		cache.SetVnic(vnicId, vnic)
+	}
+	return vnic, nil
+}
+
+func (c *client) buildInstanceDomainName(vnic *core.Vnic,
+	subnet *core.Subnet,
+	vcn *core.Vcn) (string, error) {
+	if vnic.HostnameLabel == nil {
+		return "", fmt.Errorf("Vnic %s has nil Hostname label", vnic.Id)
+	}
+	if subnet.DnsLabel == nil {
+		return "", fmt.Errorf("Subnet %s has nil DNS label", subnet.Id)
+	}
+	if vcn.DnsLabel == nil {
+		return "", fmt.Errorf("Vcn %s has nil DNS label", vcn.Id)
+	}
+	return fmt.Sprintf("%s.%s.%s.oraclevcn.com", *vnic.HostnameLabel, *subnet.DnsLabel, *vcn.DnsLabel), nil
 }
 
 // findInstanceByNodeNameIsVnic try to find the BM Instance
@@ -230,6 +277,12 @@ func (c *client) isVnicAttachmentInSubnets(vnicAttachment *core.VnicAttachment, 
 // 2) see if the nodename is equal to the hostname label
 // 3) see if the nodename is an ip
 func (c *client) findInstanceByNodeNameIsVnic(cache *cache.OCICache, nodeName string) (*core.Instance, error) {
+	vcn, err := c.getVCN()
+	if err != nil {
+		log.Printf("Error getting DnsLable for VCN: %s", c.config.Auth.VcnOCID)
+		return nil, err
+	}
+
 	subnets, err := c.getAllSubnetsForVNC()
 	if err != nil {
 		log.Printf("Error getting subnets for VCN: %s", c.config.Auth.VcnOCID)
@@ -252,29 +305,22 @@ func (c *client) findInstanceByNodeNameIsVnic(cache *cache.OCICache, nodeName st
 			return nil, err
 		}
 		for _, attachment := range vnicAttachments.Items {
-			if !c.isVnicAttachmentInSubnets(&attachment, subnets) {
+			subnet := c.getVnicAttachmentInSubnet(&attachment, subnets)
+			if subnet == nil {
 				continue
 			}
 			if attachment.LifecycleState == core.VnicAttachmentLifecycleStateAttached {
-				vnic, ok := cache.GetVnic(*attachment.VnicId)
-				if !ok {
-					vnicRequest := core.GetVnicRequest{
-						VnicId: attachment.VnicId,
-					}
-					vnicResponse, err := func() (core.GetVnicResponse, error) {
-						ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
-						defer cancel()
-						return c.network.GetVnic(ctx, vnicRequest)
-					}()
-					if err != nil {
-						log.Printf("Error getting Vnic for attachment: %s(%v)", attachment, err)
-						continue
-					}
-					vnic = &vnicResponse.Vnic
-					cache.SetVnic(*attachment.VnicId, vnic)
+				vnic, err := c.getVnic(cache, *attachment.VnicId)
+				if err != nil {
+					log.Printf("Error getting Vnic for attachment: %s(%v)", attachment, err)
+					continue
+				}
+				fqdn, err := c.buildInstanceDomainName(vnic, subnet, vcn)
+				if err != nil {
+					log.Printf("Error building domain name: %v", err)
 				}
 				if (vnic.PublicIp != nil && *vnic.PublicIp == nodeName) ||
-					(vnic.HostnameLabel != nil && (*vnic.HostnameLabel != "" && strings.HasPrefix(nodeName, *vnic.HostnameLabel))) {
+					(fqdn != "" && (nodeName == fqdn)) {
 					instanceRequest := core.GetInstanceRequest{
 						InstanceId: attachment.InstanceId,
 					}
