@@ -84,14 +84,6 @@ build-test-image: build
 push-test-image: build-test-image
 	docker push ${TEST_IMAGE}:${VERSION}
 
-.PHONY: build-image
-build-image: build
-	docker build -t ${IMAGE}:${VERSION} -f Dockerfile .
-
-.PHONY: push-image
-push-image: build-image
-	docker push ${IMAGE}:${VERSION}
-
 .PHONY:system-test-config
 system-test-config:
 ifndef KUBECONFIG

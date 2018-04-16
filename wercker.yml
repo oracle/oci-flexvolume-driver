@@ -95,7 +95,7 @@ copy:
         cp build/move.sh ${WERCKER_OUTPUT_DIR}
 push:
   box:
-    id: alpine
+    id: oraclelinux:7-slim
   steps:
     - script:
         name: set ENV vars
@@ -108,6 +108,7 @@ push:
         mv ./oci-flexvolume-driver /oci
         mv ./move.sh /move.sh
         chmod +x /oci /move.sh
+
     - internal/docker-push:
         repository: wcr.io/oracle/oci-flexvolume-driver
         tag: $VERSION
