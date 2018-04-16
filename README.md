@@ -105,6 +105,20 @@ You can set these in the environment to override the default values.
 * `OCI_FLEXD_CONFIG_DIRECTORY` - Directory where the driver configuration lives (Default:
 `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci`)
 
+## OCI Policies
+
+You must ensure the user (or group) associated with the OCI credentials provided has the following level of access. See [policies][8] for more information.
+
+```
+"Allow group id GROUP to read vnic-attachments in compartment id COMPARTMENT",
+"Allow group id GROUP to read vnics in compartment id COMPARTMENT"
+"Allow group id GROUP to read instances in compartment id COMPARTMENT"
+"Allow group id GROUP to read subnets in compartment id COMPARTMENT"
+"Allow group id GROUP to use volumes in compartment id COMPARTMENT"
+"Allow group id GROUP to use instances in compartment id COMPARTMENT"
+"Allow group id GROUP to manage volume-attachments in compartment id COMPARTMENT"
+```
+
 ## Tutorial
 
 This guide will walk you through creating a Pod with persistent storage. It assumes
@@ -252,3 +266,4 @@ See [LICENSE](LICENSE) for more details.
 [5]: https://docs.us-phoenix-1.oraclecloud.com/Content/API/SDKDocs/cli.htm
 [6]: https://github.com/oracle/oci-volume-provisioner
 [7]: https://github.com/kubernetes/kubernetes/issues/44737
+[8]: https://docs.us-phoenix-1.oraclecloud.com/Content/Identity/Concepts/policies.htm
