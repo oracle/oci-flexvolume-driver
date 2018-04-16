@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: oci-flex-volume-driver-installer
+spec:
+  selector:
+    matchLabels:
+      app: oci-flex-volume-driver-installer
+  template:
+    metadata:
+      labels:
+        app: oci-flex-volume-driver-installer
+    spec:
+      containers:
+        - image: <deployment_image>
+          name: oci-flex-volume-driver-installer
+          securityContext:
+              privileged: true
+          volumeMounts:
+          - mountPath: /flexmnt
+            name: plugin-dir-mount
+      volumes:
+      - name: plugin-dir-mount
+        hostPath:
+          path: <host_driver_directory>
