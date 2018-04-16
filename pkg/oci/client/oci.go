@@ -236,7 +236,7 @@ func (c *client) findInstanceByNodeNameIsVnic(cache *cache.OCICache, nodeName st
 		return nil, err
 	}
 	if len(*subnets) == 0 {
-		return nil, fmt.Errorf("No subnets defined for VCN: %s", c.config.Auth.VcnOCID)
+		return nil, fmt.Errorf("no subnets defined for VCN: %s", c.config.Auth.VcnOCID)
 	}
 
 	var running []core.Instance
