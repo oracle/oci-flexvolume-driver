@@ -22,9 +22,9 @@ BUILD := $(shell git describe --always --dirty)
 VERSION ?= ${BUILD}
 GOOS ?= linux
 GOARCH ?= amd64
-REGISTRY ?= wcr.io
-DOCKER_REGISTRY_USERNAME ?= oracle
-TEST_IMAGE ?= $(REGISTRY)/$(DOCKER_REGISTRY_USERNAME)/oci-flexvolume-driver-test
+REGISTRY ?= wcr.io/oracle
+TEST_IMAGE ?= $(REGISTRY)/oci-flexvolume-driver-test
+IMAGE ?= $(REGISTRY)/oci-flexvolume-driver
 
 SRC_DIRS := cmd pkg # directories which hold app source (not vendored)
 
@@ -82,8 +82,15 @@ build-test-image: build
 
 .PHONY: push-test-image
 push-test-image: build-test-image
-	docker login -u '$(DOCKER_REGISTRY_USERNAME)' -p '$(DOCKER_REGISTRY_PASSWORD)' $(REGISTRY)
 	docker push ${TEST_IMAGE}:${VERSION}
+
+.PHONY: build-image
+build-image: build
+	docker build -t ${IMAGE}:${VERSION} -f Dockerfile .
+
+.PHONY: push-image
+push-image: build-image
+	docker push ${IMAGE}:${VERSION}
 
 .PHONY:system-test-config
 system-test-config:

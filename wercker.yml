@@ -23,7 +23,7 @@ build:
     - script:
       name: unit tests
       code: make test
-      
+
     - script:
       name: build
       code: |
@@ -85,6 +85,33 @@ validate-test-image:
         code: |
           cd ./test/system
           ./run-test-image.sh $VERSION
+
+copy:
+  steps:
+    - script:
+      name: copy output
+      code: |
+        cp -a dist/* ${WERCKER_OUTPUT_DIR}
+        cp build/move.sh ${WERCKER_OUTPUT_DIR}
+push:
+  box:
+    id: alpine
+  steps:
+    - script:
+        name: set ENV vars
+        code: |
+          export VERSION=$(cat VERSION.txt)
+          echo "${VERSION}"
+    - script:
+      name: prepare
+      code: |
+        mv ./oci-flexvolume-driver /oci
+        mv ./move.sh /move.sh
+        chmod +x /oci /move.sh
+    - internal/docker-push:
+        repository: wcr.io/oracle/oci-flexvolume-driver
+        tag: $VERSION
+        entrypoint: /move.sh
 
 release:
   steps:
