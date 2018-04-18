@@ -14,48 +14,15 @@ See the [oci-volume-provisioner][3] for more information.
 We publish the OCI flexvolume driver as a single binary that needs to be
 installed on every node in your Kubernetes cluster.
 
-### Ansible
+### Kubernetes DaemonSet Installer
 
-The recommended way to install the driver is with Ansible.
-
-Compile the oci binary or download the latest release from Github.
+The recommended way to install the driver is through the daemonset installer mechanism.
 
 ```
-make build
+kubectl apply -f https://github.com/oracle/oci-flexvolume-driver/releases/download/${flexvolume_driver_version}/oci-flexvolume-driver.yaml
 ```
 
-Now you can use Ansible to deploy the driver to your cluster
-
-```
-cd ansible
-```
-
-Create an inventory file
-
-```
-cp hosts.example hosts
-```
-
-Add the details for all the masters and nodes in your cluster
-(the oci-flexvolume-driver needs to be installed on all masters and workers)
-
-```
-[all:vars]
-ansible_ssh_user=opc
-
-[masters]
-...
-
-[workers]
-...
-```
-
-#### Run the playbook.
-
-```
-ansible-playbook -i hosts \
---private-key=generated/instances_id_rsa site.yaml
-```
+You'll still need to add the config file as per below (we'll fix that with Instance Principals support soon).
 
 ### Manually
 

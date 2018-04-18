@@ -23,12 +23,16 @@ build:
     - script:
       name: unit tests
       code: make test
-      
+
     - script:
       name: build
       code: |
         make build
         make build-integration-tests
+
+    - script:
+      name: manifests
+      code: make manifests
 
 integration-test:
   box:
@@ -54,7 +58,6 @@ system-test:
       name: prepare
       code: |
         mkdir /test
-        cp -R ./ansible /ansible
         cp -R ./dist /dist
         cp -R ./test/system /test/system
 
@@ -86,7 +89,34 @@ validate-test-image:
           cd ./test/system
           ./run-test-image.sh $VERSION
 
+
+push:
+  box:
+    id: oraclelinux:7-slim
+  steps:
+    - script:
+        name: set ENV vars
+        code: |
+          export VERSION=$(cat VERSION.txt)
+          echo "${VERSION}"
+
+    - script:
+        name: prepare
+        code: |
+          cp ./dist/bin/oci /oci
+          chmod +x /oci
+          cp ./deploy.sh /deploy.sh
+          chmod +x /deploy.sh
+
+    - internal/docker-push:
+        repository: wcr.io/oracle/oci-flexvolume-driver
+        tag: $VERSION
+        entrypoint: /deploy.sh
+
+
 release:
+  box:
+    id: oraclelinux:7-slim
   steps:
     - script:
         name: set ENV vars
@@ -99,6 +129,12 @@ release:
       tag: $VERSION
       title: $VERSION
       draft: false
+
+    - github-upload-asset:
+      token: $GITHUB_TOKEN
+      file: ./dist/oci-flexvolume-driver.yaml
+      filename: oci-flexvolume-driver.yaml
+      content-type: text/yaml
 
     - github-upload-asset:
       token: $GITHUB_TOKEN
