@@ -1,20 +1,21 @@
 apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
-  name: flex-set
+  name: oci-flexvolume-driver
+  namespace: kube-system
 spec:
   template:
     metadata:
-      name: flex-deploy
+      name: oci-flexvolume-driver
       labels:
-        app: flex-deploy
+        app: oci-flexvolume-driver
     spec:
       tolerations:
         - key: node-role.kubernetes.io/master
           effect: NoSchedule
       containers:
-        - image: wcr.io/oracle/oci-flexvolume-driver:__VERSION__
-          name: flex-deploy
+        - image: wcr.io/__DOCKER_REGISTRY_USERNAME__/oci-flexvolume-driver:__VERSION__
+          name: oci-flexvolume-driver
           securityContext:
             privileged: true
           volumeMounts:
