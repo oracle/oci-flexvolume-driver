@@ -39,6 +39,7 @@ LOCKFILE = "/tmp/system-test-lock-file"
 MAX_NUM_LOCKFILE_RETRIES = 100
 CI_LOCKFILE_PREFIX = "CI"
 LOCAL_LOCKFILE_PREFIX = "LOCAL"
+DAEMONSET_NAME = "oci-flexvolume-driver"
 CI_APPLICATION_NAME = "oci-flexvolume-driver"
 CI_BASE_URL = "https://app.wercker.com/api/v3"
 CI_PIPELINE_NAME = "system-test"
@@ -333,9 +334,29 @@ def _create_replication_controller_yaml(using_oci, volume_name, test_id):
             volume_name, test_id)
 
 
+def _is_driver_running():
+    stdout = _kubectl("-n kube-system get daemonset " + DAEMONSET_NAME + " -o json", log_stdout=False)
+    jsn = json.loads(stdout)
+    desired = int(jsn["status"]["desiredNumberScheduled"])
+    ready = int(jsn["status"]["numberReady"])
+    _log("    - daemonset " + DAEMONSET_NAME + ": desired: " + str(desired) + ", ready: " + str(ready))
+    return desired == ready
+
+
+def _wait_for_driver():
+    num_polls = 0
+    while not _is_driver_running():
+        time.sleep(1)
+        num_polls += 1
+        if num_polls == TIMEOUT:
+            _log("Error: Daemonset: " + DAEMONSET_NAME + " " + "failed to achieve running status: ")
+            sys.exit(1)
+
+
 def _install_driver():
-    # change this to kubectl apply
-    stdout = _kubectl("apply -f /dist/oci-flexvolume-driver.yaml")
+    _kubectl("delete -f ../../dist/oci-flexvolume-driver.yaml", exit_on_error=False, display_errors=False)
+    _kubectl("apply -f ../../dist/oci-flexvolume-driver.yaml")
+    _wait_for_driver()
 
 
 def _get_pod_infos(test_id):
@@ -456,7 +477,7 @@ def _main():
         if args['create_using_oci']:
             _log("Creating test volume (using terraform)", as_banner=True)
             _terraform("init", TERRAFORM_DIR, terraform_env)
-            _terraform("apply", TERRAFORM_DIR, terraform_env)
+            _terraform("apply -auto-approve", TERRAFORM_DIR, terraform_env)
             _log(_terraform("output -json", TERRAFORM_DIR, terraform_env))
 
     if not args['no_destroy']:
@@ -476,7 +497,6 @@ def _main():
     if args['install']:
         _log("Installing flexvolume driver on all of the the nodes", as_banner=True)
         _install_driver()
-        time.sleep(30)  # wait for Docker to come back up
 
     if not args['no_test']:
         _log("Running system test: ", as_banner=True)

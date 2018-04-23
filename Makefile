@@ -74,9 +74,8 @@ build:
 .PHONY: manifests
 manifests: build
 	@cp -a manifests/* dist
-	@sed ${SED_INPLACE}                                            \
-	    's#__VERSION__#${VERSION}#g' \
-	    dist/oci-flexvolume-driver.yaml
+	@sed ${SED_INPLACE} 's#__VERSION__#${VERSION}#g' dist/oci-flexvolume-driver.yaml
+	@sed ${SED_INPLACE} 's#__DOCKER_REGISTRY_USERNAME__#${DOCKER_REGISTRY_USERNAME}#g' dist/oci-flexvolume-driver.yaml
 
 .PHONY: build-integration-tests
 build-integration-tests:
@@ -91,13 +90,15 @@ build-integration-tests:
 	    -o ${BIN_DIR}/integration-tests \
 	    ./test/integration
 
-.PHONY: build-test-image
-build-test-image: build
+.PHONY: image
+image: manifests build-integration-tests
+	docker build -t ${IMAGE}:${VERSION} -f Dockerfile .
 	docker build -t ${TEST_IMAGE}:${VERSION} -f Dockerfile.test .
 
-.PHONY: push-test-image
-push-test-image: build-test-image
+.PHONY: push
+push: image
 	docker login -u '$(DOCKER_REGISTRY_USERNAME)' -p '$(DOCKER_REGISTRY_PASSWORD)' $(REGISTRY)
+	docker push ${IMAGE}:${VERSION}
 	docker push ${TEST_IMAGE}:${VERSION}
 
 .PHONY:system-test-config
