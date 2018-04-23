@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM oraclelinux:7.3
+FROM oraclelinux:7-slim
 
 COPY dist/bin/oci /oci
 COPY ./deploy.sh /deploy.sh
