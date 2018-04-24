@@ -21,6 +21,7 @@ import json
 import os
 import re
 import select
+from shutil import copyfile
 import subprocess
 import sys
 import time
@@ -43,7 +44,27 @@ DAEMONSET_NAME = "oci-flexvolume-driver"
 CI_APPLICATION_NAME = "oci-flexvolume-driver"
 CI_BASE_URL = "https://app.wercker.com/api/v3"
 CI_PIPELINE_NAME = "system-test"
+WRITE_REPORT=True
+REPORT_DIR_PATH="/tmp/results"
+REPORT_FILE="done"
 
+# On exit return 0 for success or any other integer for a failure.
+# If write_report is true then write a completion file to the Sonabuoy plugin result file.
+# The default location is: /tmp/results/done
+def _finish_with_exit_code(exit_code, write_report=True, report_dir_path=REPORT_DIR_PATH, report_file=REPORT_FILE):
+    print "finishing with exit code: " + str(exit_code)
+    if write_report:
+        if not os.path.exists(report_dir_path):
+            os.makedirs(report_dir_path)
+        if exit_code == 0:
+            _debug_file("\nTest Suite Success\n")
+        else:
+            _debug_file("\nTest Suite Failed\n")
+        time.sleep(3)
+        copyfile(DEBUG_FILE, report_dir_path + "/" + DEBUG_FILE)
+        with open(report_dir_path + "/" + report_file, "w+") as file: 
+            file.write(str(report_dir_path + "/" + DEBUG_FILE))
+    sys.exit(exit_code)           
 
 def _check_env(args):
     should_exit = False
@@ -74,7 +95,7 @@ def _check_env(args):
             should_exit = True
 
     if should_exit:
-        sys.exit(1)
+        _finish_with_exit_code(1)
 
 
 def _create_key_files():
@@ -132,7 +153,7 @@ def _get_application_id(applications_json):
         if application['name'] == CI_APPLICATION_NAME:
             return application['id']
     _log("Error. Failed to find the CI application id for: " + CI_APPLICATION_NAME)
-    sys.exit(1)
+    _finish_with_exit_code(1)
 
 
 def _pipeline_exists(runs_json):
@@ -165,7 +186,7 @@ def _wait_for_cluster(instance_ip):
             # No lockfile found, so create one.
             if not _write_lock_file(instance_ip, lockfile_content):
                 _log("Error. Failed to write lockfile: " + LOCKFILE)
-                sys.exit(1)
+                _finish_with_exit_code(1)
             content = _read_lock_file(instance_ip)
             if content == lockfile_content:
                 return
@@ -179,7 +200,7 @@ def _wait_for_cluster(instance_ip):
                 continue
         time.sleep(30)
     _log("Error. Timedout waiting for the cluster to become available")
-    sys.exit(1)
+    _finish_with_exit_code(1)
 
 
 def _destroy_key_files():
@@ -278,7 +299,7 @@ def _terraform(action, cwd, terraform_env):
     (stdout, _, returncode) = _run_command(terraform_env + " terraform " + action, cwd)
     if returncode != 0:
         _log("Error running terraform")
-        sys.exit(1)
+        _finish_with_exit_code(1)
     return stdout
 
 
@@ -294,7 +315,7 @@ def _kubectl(action, exit_on_error=True, display_errors=True, log_stdout=True):
                 " kubectl " + action, ".", display_errors)
     if exit_on_error and returncode != 0:
         _log("Error running kubectl")
-        sys.exit(1)
+        _finish_with_exit_code(1)
     if log_stdout:
         _log(stdout)
     return stdout
@@ -350,7 +371,7 @@ def _wait_for_driver():
         num_polls += 1
         if num_polls == TIMEOUT:
             _log("Error: Daemonset: " + DAEMONSET_NAME + " " + "failed to achieve running status: ")
-            sys.exit(1)
+            _finish_with_exit_code(1)
 
 
 def _install_driver():
@@ -385,7 +406,7 @@ def _wait_for_pod_status(desired_status, test_id):
                 _log("Error: Pod: " + i[0] + " " +
                      "failed to achieve status: " + desired_status + "." +
                      "Final status was: " + i[1])
-            sys.exit(1)
+            _finish_with_exit_code(1)
         infos = _get_pod_infos(test_id)
     for i in infos:
         if i[1] == desired_status:
@@ -409,10 +430,10 @@ def _cluster_check():
         availabilityDomains.append(node['metadata']['labels']['failure-domain.beta.kubernetes.io/zone'])
     if len(set(availabilityDomains)) != 1:
         _log("Error: This test requires a cluster with a single region")
-        sys.exit(1)
+        _finish_with_exit_code(1)
     if len(availabilityDomains) < 2:
         _log("Error: This test requires a cluster with at least 2 instances")
-        sys.exit(1)
+        _finish_with_exit_code(1)
 
 
 def _main():
@@ -468,7 +489,7 @@ def _main():
         def _delete_lock_file_atexit():
             if not _delete_lock_file(master_ip):
                 _log("Error. Failed to delete lockfile: " + LOCKFILE)
-                sys.exit(1)
+                _finish_with_exit_code(1)
         atexit.register(_delete_lock_file_atexit)
 
     terraform_env = _get_terraform_env()
@@ -515,7 +536,7 @@ def _main():
         stdout = _kubectl("exec " + podname1 + " -- ls /usr/share/nginx/html")
         if "hello.txt" not in stdout.split("\n"):
             _log("Error: Failed to find file hello.txt in mounted volume")
-            sys.exit(1)
+            _finish_with_exit_code(1)
         _log("Yes it does!")
 
         if args['destructive']:
@@ -531,13 +552,13 @@ def _main():
         if args['destructive']:
             if node1 == node2:
                 _log("Error: Pod failed to appear on the other node after being deleted/restarted.")
-                sys.exit(1)
+                _finish_with_exit_code(1)
 
         _log("Does the new file still exist?")
         stdout = _kubectl("exec " + podname2 + " -- ls /usr/share/nginx/html")
         if "hello.txt" not in stdout.split("\n"):
             _log("Error: Failed to find file hello.txt in mounted volume")
-            sys.exit(1)
+            _finish_with_exit_code(1)
         _log("Yes it does!")
 
         _log("Deleteing the replication controller (deletes the single nginx pod).")
@@ -546,6 +567,8 @@ def _main():
         if args['destructive']:
             _log("Adding the original node back into the cluster.")
             _kubectl("uncordon " + node1)
+    
+    _finish_with_exit_code(0)
 
 
 if __name__ == "__main__":
