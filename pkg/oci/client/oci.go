@@ -31,6 +31,7 @@ import (
 	"github.com/oracle/oci-flexvolume-driver/pkg/oci/client/cache"
 
 	"github.com/oracle/oci-go-sdk/common"
+	"github.com/oracle/oci-go-sdk/common/auth"
 	"github.com/oracle/oci-go-sdk/core"
 )
 
@@ -85,14 +86,23 @@ func New(configPath string) (Interface, error) {
 	if err != nil {
 		return nil, err
 	}
-	configProvider := common.NewRawConfigurationProvider(
-		config.Auth.TenancyOCID,
-		config.Auth.UserOCID,
-		config.Auth.Region,
-		config.Auth.Fingerprint,
-		config.Auth.PrivateKey,
-		&config.Auth.Passphrase,
-	)
+	var configProvider common.ConfigurationProvider
+	if config.UseInstancePrincipals {
+		cp, err := auth.InstancePrincipalConfigurationProvider()
+		if err != nil {
+			return nil, err
+		}
+		configProvider = cp
+	} else {
+		configProvider = common.NewRawConfigurationProvider(
+			config.Auth.TenancyOCID,
+			config.Auth.UserOCID,
+			config.Auth.Region,
+			config.Auth.Fingerprint,
+			config.Auth.PrivateKey,
+			&config.Auth.Passphrase,
+		)
+	}
 	computeClient, err := core.NewComputeClientWithConfigurationProvider(configProvider)
 	if err != nil {
 		return nil, err
