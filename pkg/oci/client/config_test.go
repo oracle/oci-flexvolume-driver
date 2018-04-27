@@ -134,7 +134,7 @@ func TestValidateConfig(t *testing.T) {
 				},
 			},
 			errs: field.ErrorList{
-				&field.Error{Type: field.ErrorTypeRequired, Field: "region", BadValue: ""},
+				&field.Error{Type: field.ErrorTypeRequired, Field: "auth.region", BadValue: ""},
 			},
 		}, {
 			name: "missing_region_key",
@@ -150,7 +150,7 @@ func TestValidateConfig(t *testing.T) {
 				},
 			},
 			errs: field.ErrorList{
-				&field.Error{Type: field.ErrorTypeRequired, Field: "region_key", BadValue: ""},
+				&field.Error{Type: field.ErrorTypeRequired, Field: "auth.region_key", BadValue: ""},
 			},
 		}, {
 			name: "missing_tenancy_ocid",
@@ -166,7 +166,7 @@ func TestValidateConfig(t *testing.T) {
 				},
 			},
 			errs: field.ErrorList{
-				&field.Error{Type: field.ErrorTypeRequired, Field: "tenancy", BadValue: ""},
+				&field.Error{Type: field.ErrorTypeRequired, Field: "auth.tenancy", BadValue: ""},
 			},
 		}, {
 			name: "missing_compartment_ocid",
@@ -182,7 +182,7 @@ func TestValidateConfig(t *testing.T) {
 				},
 			},
 			errs: field.ErrorList{
-				&field.Error{Type: field.ErrorTypeRequired, Field: "compartment", BadValue: ""},
+				&field.Error{Type: field.ErrorTypeRequired, Field: "auth.compartment", BadValue: ""},
 			},
 		}, {
 			name: "missing_user_ocid",
@@ -198,7 +198,7 @@ func TestValidateConfig(t *testing.T) {
 				},
 			},
 			errs: field.ErrorList{
-				&field.Error{Type: field.ErrorTypeRequired, Field: "user", BadValue: ""},
+				&field.Error{Type: field.ErrorTypeRequired, Field: "auth.user", BadValue: ""},
 			},
 		}, {
 			name: "missing_key_file",
@@ -214,7 +214,7 @@ func TestValidateConfig(t *testing.T) {
 				},
 			},
 			errs: field.ErrorList{
-				&field.Error{Type: field.ErrorTypeRequired, Field: "key", BadValue: ""},
+				&field.Error{Type: field.ErrorTypeRequired, Field: "auth.key", BadValue: ""},
 			},
 		}, {
 			name: "missing_figerprint",
@@ -230,7 +230,7 @@ func TestValidateConfig(t *testing.T) {
 				},
 			},
 			errs: field.ErrorList{
-				&field.Error{Type: field.ErrorTypeRequired, Field: "fingerprint", BadValue: ""},
+				&field.Error{Type: field.ErrorTypeRequired, Field: "auth.fingerprint", BadValue: ""},
 			},
 		}, {
 			name: "missing_vcn",
@@ -246,16 +246,47 @@ func TestValidateConfig(t *testing.T) {
 				},
 			},
 			errs: field.ErrorList{
-				&field.Error{Type: field.ErrorTypeRequired, Field: "vcn", BadValue: ""},
+				&field.Error{Type: field.ErrorTypeRequired, Field: "auth.vcn", BadValue: ""},
+			},
+		}, {
+			name: "valid with instance principals enabled",
+			in: &Config{
+				UseInstancePrincipals: true,
+				Auth: AuthConfig{
+					VcnOCID:   "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					RegionKey: "phx",
+				},
+			},
+			errs: field.ErrorList{},
+		}, {
+			name: "mixing instance principals with other auth flags",
+			in: &Config{
+				UseInstancePrincipals: true,
+				Auth: AuthConfig{
+					Region:      "us-phoenix-1",
+					TenancyOCID: "ocid1.tenancy.oc1..aaaaaaaatyn7scrtwtqedvgrxgr2xunzeo6uanvyhzxqblctwkrpisvke4kq",
+					UserOCID:    "ocid1.user.oc1..aaaaaaaai77mql2xerv7cn6wu3nhxang3y4jk56vo5bn5l5lysl34avnui3q",
+					PrivateKey:  "-----BEGIN RSA PRIVATE KEY----- (etc)",
+					Fingerprint: "8c:bf:17:7b:5f:e0:7d:13:75:11:d6:39:0d:e2:84:74",
+					VcnOCID:     "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					RegionKey:   "phx",
+				},
+			},
+			errs: field.ErrorList{
+				&field.Error{Type: field.ErrorTypeForbidden, Field: "auth.region", Detail: "cannot be used when useInstancePrincipals is enabled", BadValue: ""},
+				&field.Error{Type: field.ErrorTypeForbidden, Field: "auth.tenancy", Detail: "cannot be used when useInstancePrincipals is enabled", BadValue: ""},
+				&field.Error{Type: field.ErrorTypeForbidden, Field: "auth.user", Detail: "cannot be used when useInstancePrincipals is enabled", BadValue: ""},
+				&field.Error{Type: field.ErrorTypeForbidden, Field: "auth.key", Detail: "cannot be used when useInstancePrincipals is enabled", BadValue: ""},
+				&field.Error{Type: field.ErrorTypeForbidden, Field: "auth.fingerprint", Detail: "cannot be used when useInstancePrincipals is enabled", BadValue: ""},
 			},
 		},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			result := validateConfig(tt.in)
+			result := ValidateConfig(tt.in)
 			if !reflect.DeepEqual(result, tt.errs) {
-				t.Errorf("ValidateConfig(%#v)\n=> %#v\nExpected: %#v", tt.in, result, tt.errs)
+				t.Errorf("ValidateConfig(%+v)\n=> %+v\nExpected: %+v", tt.in, result, tt.errs)
 			}
 		})
 	}
