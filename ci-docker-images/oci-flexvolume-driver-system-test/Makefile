@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-DOCKER_REPO ?= wcr.io
+DOCKER_REPO ?= iad.ocir.io
 DOCKER_USER ?= oracle
 DOCKER_IMAGE_NAME ?= oci-flexvolume-driver-system-test
 VERSION ?= 1.0.3

@@ -34,5 +34,5 @@ spec:
   serviceAccountName: oci-flexvolume-driver-system-test-{{TEST_ID}}
   containers:
   - name: flexvolume-driver-system-test
-    image: wcr.io/{{DOCKER_REGISTRY_USERNAME}}/oci-flexvolume-driver-test:{{VERSION}}
+    image: iad.ocir.io/{{DOCKER_REGISTRY_USERNAME}}/oci-flexvolume-driver-test:{{VERSION}}
   restartPolicy: Never

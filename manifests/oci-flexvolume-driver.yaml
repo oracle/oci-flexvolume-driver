@@ -14,7 +14,7 @@ spec:
         - key: node-role.kubernetes.io/master
           effect: NoSchedule
       containers:
-        - image: wcr.io/__DOCKER_REGISTRY_USERNAME__/oci-flexvolume-driver:__VERSION__
+        - image: iad.ocir.io/__DOCKER_REGISTRY_USERNAME__/oci-flexvolume-driver:__VERSION__
           name: oci-flexvolume-driver
           securityContext:
             privileged: true
