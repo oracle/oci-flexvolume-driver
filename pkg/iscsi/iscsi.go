@@ -281,15 +281,15 @@ func (c *iSCSIMounter) UnmountPath(path string) error {
 
 // mountLister is a minimal subset of mount.Interface (used to enable testing).
 type mountLister interface {
-	List() ([]mount.MountPoint, error)
+	List() ([]mount.MntPoint, error)
 }
 
-// getMountPointForPath returns the mount.MountPoint for a given path. If the
+// getMountPointForPath returns the mount.MntPoint for a given path. If the
 // given path is not a mount point
-func getMountPointForPath(ml mountLister, path string) (mount.MountPoint, error) {
+func getMountPointForPath(ml mountLister, path string) (mount.MntPoint, error) {
 	mountPoints, err := ml.List()
 	if err != nil {
-		return mount.MountPoint{}, err
+		return mount.MntPoint{}, err
 	}
 
 	for _, mountPoint := range mountPoints {
@@ -298,12 +298,12 @@ func getMountPointForPath(ml mountLister, path string) (mount.MountPoint, error)
 		}
 	}
 
-	return mount.MountPoint{}, ErrMountPointNotFound
+	return mount.MntPoint{}, ErrMountPointNotFound
 }
 
 // TODO(apryde): Need to think about how best to test this/make it more
 // testable.
-func diskByPathForMountPoint(mountPoint mount.MountPoint) (string, error) {
+func diskByPathForMountPoint(mountPoint mount.MntPoint) (string, error) {
 	foundErr := errors.New("found")
 	diskByPath := ""
 	err := filepath.Walk("/dev/disk/by-path/", func(path string, info os.FileInfo, err error) error {

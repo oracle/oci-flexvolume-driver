@@ -22,46 +22,46 @@ import (
 )
 
 type mockMountLister struct {
-	mps []mount.MountPoint
+	mps []mount.MntPoint
 }
 
-func (ml *mockMountLister) List() ([]mount.MountPoint, error) {
+func (ml *mockMountLister) List() ([]mount.MntPoint, error) {
 	return ml.mps, nil
 }
 
 func TestGetMountPointForPath(t *testing.T) {
 	testCases := []struct {
 		name     string
-		mps      []mount.MountPoint
+		mps      []mount.MntPoint
 		path     string
 		err      error
-		expected mount.MountPoint
+		expected mount.MntPoint
 	}{
 		{
 			name: "single",
-			mps: []mount.MountPoint{
+			mps: []mount.MntPoint{
 				{Path: "/tmp/my-mountpoint"},
 			},
 			path:     "/tmp/my-mountpoint",
 			err:      nil,
-			expected: mount.MountPoint{Path: "/tmp/my-mountpoint"},
+			expected: mount.MntPoint{Path: "/tmp/my-mountpoint"},
 		}, {
 			name: "multiple",
-			mps: []mount.MountPoint{
+			mps: []mount.MntPoint{
 				{Path: "/tmp/my-other-mountpoint"},
 				{Path: "/tmp/my-mountpoint"},
 			},
 			path:     "/tmp/my-mountpoint",
 			err:      nil,
-			expected: mount.MountPoint{Path: "/tmp/my-mountpoint"},
+			expected: mount.MntPoint{Path: "/tmp/my-mountpoint"},
 		}, {
 			name: "missing",
-			mps: []mount.MountPoint{
+			mps: []mount.MntPoint{
 				{Path: "/tmp/my-other-mountpoint"},
 			},
 			path:     "/tmp/my-mountpoint",
 			err:      ErrMountPointNotFound,
-			expected: mount.MountPoint{},
+			expected: mount.MntPoint{},
 		},
 	}
 
