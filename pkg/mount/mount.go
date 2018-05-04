@@ -16,6 +16,7 @@ limitations under the License.
 
 // TODO(thockin): This whole pkg is pretty linux-centric.  As soon as we have
 // an alternate platform, we will need to abstract further.
+
 package mount
 
 import (
@@ -30,10 +31,12 @@ import (
 
 const (
 	// Default mount command if mounter path is not specified
-	defaultMountCommand  = "mount"
+	defaultMountCommand = "mount"
+	// MountsInGlobalPDPath Mounts directory to use for building the mount path
 	MountsInGlobalPDPath = "mounts"
 )
 
+// Interface for device mount specific operations
 type Interface interface {
 	// Mount mounts source to target as fstype with given options.
 	Mount(source string, target string, fstype string, options []string) error
@@ -43,7 +46,7 @@ type Interface interface {
 	// On some platforms, reading mounts is not guaranteed consistent (i.e.
 	// it could change between chunked reads). This is guaranteed to be
 	// consistent.
-	List() ([]MountPoint, error)
+	List() ([]MntPoint, error)
 	// IsLikelyNotMountPoint determines if a directory is a mountpoint.
 	// It should return ErrNotExist when the directory does not exist.
 	IsLikelyNotMountPoint(file string) (bool, error)
@@ -61,8 +64,9 @@ type Interface interface {
 // the mount interface
 var _ Interface = &Mounter{}
 
+// MntPoint contains mount point attributes
 // This represents a single line in /proc/mounts or /etc/fstab.
-type MountPoint struct {
+type MntPoint struct {
 	Device string
 	Path   string
 	Type   string
@@ -139,7 +143,7 @@ func GetMountRefs(mounter Interface, mountPath string) ([]string, error) {
 	return refs, nil
 }
 
-// GetDeviceNameFromMount: given a mnt point, find the device from /proc/mounts
+// GetDeviceNameFromMount - given a mnt point, find the device from /proc/mounts
 // returns the device name, reference count, and error code
 func GetDeviceNameFromMount(mounter Interface, mountPath string) (string, int, error) {
 	mps, err := mounter.List()

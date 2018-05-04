@@ -45,11 +45,11 @@ const (
 type Interface interface {
 	// FindVolumeAttachment searches for a volume attachment in either the state
 	// ATTACHING or ATTACHED and returns the first volume attachment found.
-	FindVolumeAttachment(volumeId string) (core.VolumeAttachment, error)
+	FindVolumeAttachment(volumeID string) (core.VolumeAttachment, error)
 
 	// WaitForVolumeAttached polls waiting for a OCI block volume to be in the
 	// ATTACHED state.
-	WaitForVolumeAttached(volumeAttachmentId string) (core.VolumeAttachment, error)
+	WaitForVolumeAttached(volumeAttachmentID string) (core.VolumeAttachment, error)
 
 	// GetInstanceByNodeName retrieves the oci.Instance corresponding or
 	// a SearchError if no instance matching the node name is found.
@@ -57,15 +57,15 @@ type Interface interface {
 
 	// AttachVolume attaches a block storage volume to the specified instance.
 	// See https://docs.us-phoenix-1.oraclecloud.com/api/#/en/iaas/20160918/VolumeAttachment/AttachVolume
-	AttachVolume(instanceId, volumeId string) (core.VolumeAttachment, int, error)
+	AttachVolume(instanceID, volumeID string) (core.VolumeAttachment, int, error)
 
 	// DetachVolume detaches a storage volume from the specified instance.
 	// See: https://docs.us-phoenix-1.oraclecloud.com/api/#/en/iaas/20160918/Volume/DetachVolume
-	DetachVolume(volumeAttachmentId string) error
+	DetachVolume(volumeAttachmentID string) error
 
 	// WaitForVolumeDetached polls waiting for a OCI block volume to be in the
 	// DETACHED state.
-	WaitForVolumeDetached(volumeAttachmentId string) error
+	WaitForVolumeDetached(volumeAttachmentID string) error
 
 	// GetConfig returns the Config associated with the OCI API client.
 	GetConfig() *Config
@@ -131,10 +131,10 @@ func New(configPath string) (Interface, error) {
 
 // WaitForVolumeAttached polls waiting for a OCI block volume to be in the
 // ATTACHED state.
-func (c *client) WaitForVolumeAttached(volumeAttachmentId string) (core.VolumeAttachment, error) {
+func (c *client) WaitForVolumeAttached(volumeAttachmentID string) (core.VolumeAttachment, error) {
 	// TODO: Replace with "k8s.io/apimachinery/pkg/util/wait".
 	request := core.GetVolumeAttachmentRequest{
-		VolumeAttachmentId: &volumeAttachmentId,
+		VolumeAttachmentId: &volumeAttachmentID,
 	}
 	for i := 0; i < ociMaxRetries; i++ {
 		r, err := func() (core.GetVolumeAttachmentResponse, error) {
@@ -161,14 +161,14 @@ func (c *client) WaitForVolumeAttached(volumeAttachmentId string) (core.VolumeAt
 
 // FindVolumeAttachment searches for a volume attachment in either the state of
 // ATTACHING or ATTACHED and returns the first volume attachment found.
-func (c *client) FindVolumeAttachment(volumeId string) (core.VolumeAttachment, error) {
+func (c *client) FindVolumeAttachment(volumeID string) (core.VolumeAttachment, error) {
 	var page *string
 
 	for {
 		request := core.ListVolumeAttachmentsRequest{
 			CompartmentId: common.String(c.config.Auth.CompartmentOCID),
 			Page:          page,
-			VolumeId:      &volumeId,
+			VolumeId:      &volumeID,
 		}
 
 		r, err := func() (core.ListVolumeAttachmentsResponse, error) {
@@ -193,7 +193,7 @@ func (c *client) FindVolumeAttachment(volumeId string) (core.VolumeAttachment, e
 		}
 	}
 
-	return nil, fmt.Errorf("failed to find volume attachment for %q", volumeId)
+	return nil, fmt.Errorf("failed to find volume attachment for %q", volumeID)
 }
 
 func (c *client) getVCNCompartment() (*string, error) {
@@ -414,11 +414,11 @@ func (c *client) GetInstanceByNodeName(nodeName string) (*core.Instance, error) 
 }
 
 // AttachVolume attaches a block storage volume to the specified instance.
-func (c *client) AttachVolume(instanceId, volumeId string) (core.VolumeAttachment, int, error) {
+func (c *client) AttachVolume(instanceID, volumeID string) (core.VolumeAttachment, int, error) {
 	request := core.AttachVolumeRequest{
 		AttachVolumeDetails: core.AttachIScsiVolumeDetails{
-			InstanceId: &instanceId,
-			VolumeId:   &volumeId,
+			InstanceId: &instanceID,
+			VolumeId:   &volumeID,
 		},
 	}
 	r, err := func() (core.AttachVolumeResponse, error) {
@@ -433,9 +433,9 @@ func (c *client) AttachVolume(instanceId, volumeId string) (core.VolumeAttachmen
 }
 
 // DetachVolume detaches a storage volume from the specified instance.
-func (c *client) DetachVolume(volumeAttachmentId string) error {
+func (c *client) DetachVolume(volumeAttachmentID string) error {
 	request := core.DetachVolumeRequest{
-		VolumeAttachmentId: &volumeAttachmentId,
+		VolumeAttachmentId: &volumeAttachmentID,
 	}
 	err := func() error {
 		ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
@@ -451,10 +451,10 @@ func (c *client) DetachVolume(volumeAttachmentId string) error {
 
 // WaitForVolumeDetached polls waiting for a OCI block volume to be in the
 // DETACHED state.
-func (c *client) WaitForVolumeDetached(volumeAttachmentId string) error {
+func (c *client) WaitForVolumeDetached(volumeAttachmentID string) error {
 	// TODO: Replace with "k8s.io/apimachinery/pkg/util/wait".
 	request := core.GetVolumeAttachmentRequest{
-		VolumeAttachmentId: &volumeAttachmentId,
+		VolumeAttachmentId: &volumeAttachmentID,
 	}
 	for i := 0; i < ociMaxRetries; i++ {
 		r, err := func() (core.GetVolumeAttachmentResponse, error) {
