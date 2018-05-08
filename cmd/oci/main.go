@@ -44,6 +44,9 @@ func main() {
 		os.Exit(1)
 	}
 	defer f.Close()
+
+	log.SetPrefix(fmt.Sprintf("%d ", os.Getpid()))
+
 	log.SetOutput(f)
 
 	log.Printf("OCI FlexVolume Driver version: %s (%s)", version, build)
