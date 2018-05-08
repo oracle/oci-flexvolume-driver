@@ -20,15 +20,18 @@ set -o pipefail
 VENDOR=oracle
 DRIVER=oci
 
-driver_dir=$VENDOR${VENDOR:+"~"}${DRIVER}
-if [ ! -d "/flexmnt/$driver_dir" ]; then
-  mkdir "/flexmnt/$driver_dir"
+driver_dir="/flexmnt/$VENDOR${VENDOR:+"~"}${DRIVER}"
+
+LOG_FILE="$driver_dir/oci_flexvolume_driver.log"
+
+if [ ! -d "$driver_dir" ]; then
+  mkdir "$driver_dir"
 fi
 
-cp "/$DRIVER" "/flexmnt/$driver_dir/.$DRIVER"
-mv -f "/flexmnt/$driver_dir/.$DRIVER" "/flexmnt/$driver_dir/$DRIVER"
+cp "/$DRIVER" "$driver_dir/.$DRIVER"
+mv -f "$driver_dir/.$DRIVER" "$driver_dir/$DRIVER"
 
 while : ; do
-  sleep 3600 &
-  wait $!
+  touch $LOG_FILE
+  tail -f $LOG_FILE
 done
