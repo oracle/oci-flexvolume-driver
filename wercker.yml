@@ -36,7 +36,7 @@ build:
 
 integration-test:
   box:
-    id: wcr.io/oracle/oci-flexvolume-driver-system-test:1.0.3
+    id: iad.ocir.io/oracle/oci-flexvolume-driver-system-test:1.0.3
   steps:
     - script:
         name: integration test
@@ -46,7 +46,7 @@ integration-test:
 
 system-test:
   box:
-    id: wcr.io/oracle/oci-flexvolume-driver-system-test:1.0.3
+    id: iad.ocir.io/oracle/oci-flexvolume-driver-system-test:1.0.3
   steps:
     - script:
       name: set ENV vars
@@ -62,10 +62,13 @@ system-test:
         cp -R ./test/system /test/system
 
     - internal/docker-push:
-      repository: wcr.io/oracle/oci-flexvolume-driver-test
+      repository: iad.ocir.io/oracle/oci-flexvolume-driver-test
       tag: $VERSION
       working-dir: /test/system
       entrypoint: ./runner.py
+      registry: https://iad.ocir.io/v2
+      username: $OCIRUSERNAME
+      password: $OCIRPASSWORD
 
     - script:
         name: system test
@@ -75,7 +78,7 @@ system-test:
 
 validate-test-image:
   box:
-    id: wcr.io/oracle/oci-flexvolume-driver-system-test:1.0.3
+    id: iad.ocir.io/oracle/oci-flexvolume-driver-system-test:1.0.3
   steps:
     - script:
       name: set ENV vars
@@ -117,9 +120,36 @@ push:
           chmod +x /deploy.sh
 
     - internal/docker-push:
-        repository: wcr.io/oracle/oci-flexvolume-driver
+        repository: iad.ocir.io/oracle/oci-flexvolume-driver
         tag: $VERSION
         entrypoint: /deploy.sh
+        registry: https://iad.ocir.io/v2
+        username: $OCIRUSERNAME
+        password: $OCIRPASSWORD
+
+    - internal/docker-push:
+        repository: lhr.ocir.io/oracle/oci-flexvolume-driver
+        tag: $VERSION
+        entrypoint: /deploy.sh
+        registry: https://lhr.ocir.io/v2
+        username: $OCIRUSERNAME
+        password: $OCIRPASSWORD
+
+    - internal/docker-push:
+        repository: phx.ocir.io/oracle/oci-flexvolume-driver
+        tag: $VERSION
+        entrypoint: /deploy.sh
+        registry: https://phx.ocir.io/v2
+        username: $OCIRUSERNAME
+        password: $OCIRPASSWORD
+
+    - internal/docker-push:
+        repository: fra.ocir.io/oracle/oci-flexvolume-driver
+        tag: $VERSION
+        entrypoint: /deploy.sh
+        registry: https://fra.ocir.io/v2
+        username: $OCIRUSERNAME
+        password: $OCIRPASSWORD
 
 
 release:
