@@ -40,7 +40,8 @@ LOCKFILE = "/tmp/system-test-lock-file"
 MAX_NUM_LOCKFILE_RETRIES = 100
 CI_LOCKFILE_PREFIX = "CI"
 LOCAL_LOCKFILE_PREFIX = "LOCAL"
-DAEMONSET_NAME = "oci-flexvolume-driver"
+WORKER_DAEMONSET_NAME = "oci-flexvolume-driver-worker"
+MASTER_DAEMONSET_NAME = "oci-flexvolume-driver-master"
 CI_APPLICATION_NAME = "oci-flexvolume-driver"
 CI_BASE_URL = "https://app.wercker.com/api/v3"
 CI_PIPELINE_NAME = "system-test"
@@ -355,29 +356,30 @@ def _create_replication_controller_yaml(using_oci, volume_name, test_id):
             volume_name, test_id)
 
 
-def _is_driver_running():
-    stdout = _kubectl("-n kube-system get daemonset " + DAEMONSET_NAME + " -o json", log_stdout=False)
+def _is_driver_running(name):
+    stdout = _kubectl("-n kube-system get daemonset " + name + " -o json", log_stdout=False)
     jsn = json.loads(stdout)
     desired = int(jsn["status"]["desiredNumberScheduled"])
     ready = int(jsn["status"]["numberReady"])
-    _log("    - daemonset " + DAEMONSET_NAME + ": desired: " + str(desired) + ", ready: " + str(ready))
+    _log("    - daemonset " + name + ": desired: " + str(desired) + ", ready: " + str(ready))
     return desired == ready
 
 
-def _wait_for_driver():
+def _wait_for_driver(name):
     num_polls = 0
-    while not _is_driver_running():
+    while not _is_driver_running(name):
         time.sleep(1)
         num_polls += 1
         if num_polls == TIMEOUT:
-            _log("Error: Daemonset: " + DAEMONSET_NAME + " " + "failed to achieve running status: ")
+            _log("Error: Daemonset: " + name + " " + "failed to achieve running status: ")
             _finish_with_exit_code(1)
 
 
 def _install_driver():
     _kubectl("delete -f ../../dist/oci-flexvolume-driver.yaml", exit_on_error=False, display_errors=False)
     _kubectl("apply -f ../../dist/oci-flexvolume-driver.yaml")
-    _wait_for_driver()
+    _wait_for_driver(WORKER_DAEMONSET_NAME)
+    _wait_for_driver(MASTER_DAEMONSET_NAME)
 
 
 def _get_pod_infos(test_id):
