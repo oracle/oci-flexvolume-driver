@@ -25,7 +25,7 @@ TARGETS=$(for d in "$@"; do echo ./$d/...; done)
 echo -n "Checking golint: "
 
 ERRS=$(golint ${TARGETS} 2>&1 || true)
-# Ignore mount.go errors from golint as code is sourced from Kubernetes core
+# Ignore mount.go golint errors as code is sourced from Kubernetes core
 if [ -n "${ERRS}" and [${ERRS} != *"./pkg/...pkg/mount/mount.go"*] ]; then 
     echo "FAIL"
     echo "${ERRS}"
