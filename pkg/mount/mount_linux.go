@@ -158,7 +158,7 @@ func (mounter *Mounter) Unmount(target string) error {
 }
 
 // List returns a list of all mounted filesystems.
-func (*Mounter) List() ([]MntPoint, error) {
+func (*Mounter) List() ([]MountPoint, error) {
 	return listProcMounts(procMountsPath)
 }
 
@@ -253,14 +253,14 @@ func (mounter *Mounter) GetDeviceNameFromMount(mountPath, pluginDir string) (str
 	return getDeviceNameFromMount(mounter, mountPath, pluginDir)
 }
 
-func listProcMounts(mountFilePath string) ([]MntPoint, error) {
+func listProcMounts(mountFilePath string) ([]MountPoint, error) {
 	hash1, err := readProcMounts(mountFilePath, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	for i := 0; i < maxListTries; i++ {
-		mps := []MntPoint{}
+		mps := []MountPoint{}
 		hash2, err := readProcMounts(mountFilePath, &mps)
 		if err != nil {
 			return nil, err
@@ -275,8 +275,8 @@ func listProcMounts(mountFilePath string) ([]MntPoint, error) {
 }
 
 // readProcMounts reads the given mountFilePath (normally /proc/mounts) and produces a hash
-// of the contents.  If the out argument is not nil, this fills it with MntPoint structs.
-func readProcMounts(mountFilePath string, out *[]MntPoint) (uint32, error) {
+// of the contents.  If the out argument is not nil, this fills it with MountPoint structs.
+func readProcMounts(mountFilePath string, out *[]MountPoint) (uint32, error) {
 	file, err := os.Open(mountFilePath)
 	if err != nil {
 		return 0, err
@@ -285,7 +285,7 @@ func readProcMounts(mountFilePath string, out *[]MntPoint) (uint32, error) {
 	return readProcMountsFrom(file, out)
 }
 
-func readProcMountsFrom(file io.Reader, out *[]MntPoint) (uint32, error) {
+func readProcMountsFrom(file io.Reader, out *[]MountPoint) (uint32, error) {
 	hash := fnv.New32a()
 	scanner := bufio.NewReader(file)
 	for {
@@ -301,7 +301,7 @@ func readProcMountsFrom(file io.Reader, out *[]MntPoint) (uint32, error) {
 		fmt.Fprintf(hash, "%s", line)
 
 		if out != nil {
-			mp := MntPoint{
+			mp := MountPoint{
 				Device: fields[0],
 				Path:   fields[1],
 				Type:   fields[2],

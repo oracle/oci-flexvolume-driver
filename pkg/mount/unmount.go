@@ -32,11 +32,11 @@ func UnmountPath(mountPath string, mounter Interface) error {
 		return nil
 	}
 
-	notMnt, err := mounter.IsLikelyNotMountPoint(mountPath)
+	notMount, err := mounter.IsLikelyNotMountPoint(mountPath)
 	if err != nil {
 		return err
 	}
-	if notMnt {
+	if notMount {
 		log.Printf("Warning: %q is not a mountpoint, deleting", mountPath)
 		return os.Remove(mountPath)
 	}
@@ -45,11 +45,11 @@ func UnmountPath(mountPath string, mounter Interface) error {
 	if err := mounter.Unmount(mountPath); err != nil {
 		return err
 	}
-	notMnt, mntErr := mounter.IsLikelyNotMountPoint(mountPath)
+	notMount, mntErr := mounter.IsLikelyNotMountPoint(mountPath)
 	if mntErr != nil {
 		return err
 	}
-	if notMnt {
+	if notMount {
 		log.Printf("%q is unmounted, deleting the directory", mountPath)
 		return os.Remove(mountPath)
 	}

@@ -1,4 +1,5 @@
 /*
+DO NOT EDIT
 Copyright 2014 The Kubernetes Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -46,7 +47,7 @@ type Interface interface {
 	// On some platforms, reading mounts is not guaranteed consistent (i.e.
 	// it could change between chunked reads). This is guaranteed to be
 	// consistent.
-	List() ([]MntPoint, error)
+	List() ([]MountPoint, error)
 	// IsLikelyNotMountPoint determines if a directory is a mountpoint.
 	// It should return ErrNotExist when the directory does not exist.
 	IsLikelyNotMountPoint(file string) (bool, error)
@@ -64,9 +65,9 @@ type Interface interface {
 // the mount interface
 var _ Interface = &Mounter{}
 
-// MntPoint contains mount point attributes
+// MountPoint contains mount point attributes
 // This represents a single line in /proc/mounts or /etc/fstab.
-type MntPoint struct {
+type MountPoint struct {
 	Device string
 	Path   string
 	Type   string

@@ -34,8 +34,8 @@ func (mounter *Mounter) Unmount(target string) error {
 }
 
 // List returns a list of all mounted filesystems.
-func (mounter *Mounter) List() ([]MntPoint, error) {
-	return []MntPoint{}, nil
+func (mounter *Mounter) List() ([]MountPoint, error) {
+	return []MountPoint{}, nil
 }
 
 // IsLikelyNotMountPoint determines if a directory is not a mountpoint.
