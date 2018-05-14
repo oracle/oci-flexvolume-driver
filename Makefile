@@ -25,8 +25,8 @@ GOARCH ?= amd64
 REGISTRY ?= iad.ocir.io
 DOCKER_REGISTRY_TENANCY ?= oracle
 DOCKER_REGISTRY_USERNAME ?= oracle
-IMAGE := $(REGISTRY)/$(DOCKER_REGISTRY_USERNAME)/oci-flexvolume-driver
-TEST_IMAGE ?= $(REGISTRY)/$(DOCKER_REGISTRY_USERNAME)/oci-flexvolume-driver-test
+IMAGE := $(REGISTRY)/$(DOCKER_REGISTRY_TENANCY)/oci-flexvolume-driver
+TEST_IMAGE ?= $(REGISTRY)/$(DOCKER_REGISTRY_TENANCY)/oci-flexvolume-driver-test
 
 SRC_DIRS := cmd pkg # directories which hold app source (not vendored)
 
@@ -38,11 +38,7 @@ else
 endif
 
 .PHONY: all
-<<<<<<< HEAD
 all: clean test build manifests build-integration-tests
-=======
-all: gofmt golint govet test build manifests build-integration-tests
->>>>>>> Lint cleanup
 
 .PHONY: gofmt
 gofmt:
