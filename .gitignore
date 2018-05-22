@@ -36,3 +36,5 @@ test/system/run-test-image.yaml*
 ansible/hosts
 
 .idea/
+
+env.sh

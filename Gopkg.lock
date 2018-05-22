@@ -3,27 +3,34 @@
 
 [[projects]]
   name = "github.com/oracle/oci-go-sdk"
-  packages = ["common","core"]
-  revision = "8090aeb474ad994446b2db294725e3d6c0d95327"
-  version = "v1.0.0"
+  packages = [
+    "common",
+    "core"
+  ]
+  revision = "bc848a8a59b995b3b81790ece9e6c61b6ac6aba8"
+  version = "v1.5.0"
 
 [[projects]]
-  branch = "v2"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
-  revision = "eb3733d160e74a9c7e442f435eb3bea458e1d19f"
+  revision = "5420a8b6744d3b0345ab293f6fcba19c978f1183"
+  version = "v2.2.1"
 
 [[projects]]
   branch = "master"
   name = "k8s.io/apimachinery"
-  packages = ["pkg/util/errors","pkg/util/sets","pkg/util/validation/field"]
-  revision = "3b05bbfa0a45413bfa184edbf9af617e277962fb"
+  packages = [
+    "pkg/util/errors",
+    "pkg/util/sets",
+    "pkg/util/validation/field"
+  ]
+  revision = "d3a2c12799ab9db57db937746b671a1594aad117"
 
 [[projects]]
   branch = "master"
   name = "k8s.io/utils"
   packages = ["exec"]
-  revision = "4fe312863be2155a7b68acd2aff1c9221b24e68c"
+  revision = "258e2a2fa64568210fbd6267cf1d8fd87c3cb86e"
 
 [solve-meta]
   analyzer-name = "dep"

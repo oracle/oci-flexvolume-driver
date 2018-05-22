@@ -23,13 +23,14 @@ import (
 	"github.com/oracle/oci-go-sdk/core"
 )
 
+// OCICache holds our lookup map and file lock.
 type OCICache struct {
 	vnics    map[string]core.Vnic
 	file     *os.File
 	filename string
 }
 
-// Open opens the cache and returns the cache handle
+// Open opens the cache and returns the cache handle.
 func Open(filename string) (*OCICache, error) {
 	file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
@@ -50,18 +51,18 @@ func Open(filename string) (*OCICache, error) {
 	return &OCICache{file: file, vnics: vnicCache, filename: filename}, nil
 }
 
-// GetVnic looks up the vnic id in the cache
+// GetVnic looks up the vnic id in the cache.
 func (nc *OCICache) GetVnic(id string) (*core.Vnic, bool) {
 	value, ok := nc.vnics[id]
 	return &value, ok
 }
 
-// SetVnic adds a vnic to the cache
+// SetVnic adds a vnic to the cache.
 func (nc *OCICache) SetVnic(id string, value *core.Vnic) {
 	nc.vnics[id] = *value
 }
 
-// Close closes the vnic cache saving to disk and unlocking the file
+// Close closes the vnic cache saving to disk and unlocking the file.
 func (nc *OCICache) Close() error {
 	if nc.file != nil {
 		defer func() {
