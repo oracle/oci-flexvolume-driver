@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/oracle/oci-go-sdk/core"
 )
 
@@ -42,12 +43,13 @@ func TestCache(t *testing.T) {
 
 	id := "test"
 	var testVnic = core.Vnic{Id: &id}
+	var value1 = core.Vnic{Id: &id}
 	cache.SetVnic("test", &testVnic)
-	value, ok := cache.GetVnic("test")
+	_, ok := cache.GetVnic("test")
 	if !ok {
 		t.Error("test not found")
 	}
-	if *value != testVnic {
+	if !cmp.Equal(value1, testVnic) {
 		t.Error("Key not equal to test")
 	}
 	err = cache.Close()
@@ -89,7 +91,7 @@ func TestCacheLoadSave(t *testing.T) {
 	if !ok {
 		t.Error("test not found")
 	}
-	if *value != testVnic {
+	if !cmp.Equal(*value, testVnic) {
 		t.Error("Key not equal to test")
 	}
 	err = firstCache.Close()
@@ -130,7 +132,7 @@ func TestCacheParallel(t *testing.T) {
 		if !ok {
 			t.Error("test not found")
 		}
-		if *value != testVnic {
+		if !cmp.Equal(*value, testVnic) {
 			t.Error("Key not equal to test")
 		}
 		err = cache.Close()

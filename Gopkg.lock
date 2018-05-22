@@ -2,6 +2,17 @@
 
 
 [[projects]]
+  name = "github.com/google/go-cmp"
+  packages = [
+    "cmp",
+    "cmp/internal/diff",
+    "cmp/internal/function",
+    "cmp/internal/value"
+  ]
+  revision = "3af367b6b30c263d47e8895973edcca9a49cf029"
+  version = "v0.2.0"
+
+[[projects]]
   name = "github.com/oracle/oci-go-sdk"
   packages = [
     "common",
@@ -35,6 +46,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "fb2e8a38821fbc95f70d58c574b39d020a1c509c7cfa9fc60958ccdd09ad0072"
+  inputs-digest = "081ef8d1988642f78bb8684c468a3a5a42aef1c7ef9ea166d2187ecc86ebd626"
   solver-name = "gps-cdcl"
   solver-version = 1
