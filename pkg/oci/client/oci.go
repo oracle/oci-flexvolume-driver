@@ -155,7 +155,7 @@ func (c *client) FindVolumeAttachment(volumeId string) (core.VolumeAttachment, e
 	var page *string
 	for {
 		request := core.ListVolumeAttachmentsRequest{
-			CompartmentId: &c.config.Auth.CompartmentOCID,
+			CompartmentId: &c.config.CompartmentOCID,
 			Page:          page,
 			VolumeId:      &volumeId,
 		}
@@ -190,8 +190,8 @@ func (c *client) getAllSubnetsForVNC() (*[]core.Subnet, error) {
 	subnetList := []core.Subnet{}
 	for {
 		request := core.ListSubnetsRequest{
-			CompartmentId: &c.config.Auth.CompartmentOCID,
-			VcnId:         &c.config.Auth.VcnOCID,
+			CompartmentId: &c.config.CompartmentOCID,
+			VcnId:         &c.config.VcnOCID,
 			Page:          page,
 		}
 		r, err := func() (core.ListSubnetsResponse, error) {
@@ -232,18 +232,18 @@ func (c *client) isVnicAttachmentInSubnets(vnicAttachment *core.VnicAttachment, 
 func (c *client) findInstanceByNodeNameIsVnic(cache *cache.OCICache, nodeName string) (*core.Instance, error) {
 	subnets, err := c.getAllSubnetsForVNC()
 	if err != nil {
-		log.Printf("Error getting subnets for VCN: %s", c.config.Auth.VcnOCID)
+		log.Printf("Error getting subnets for VCN: %s", c.config.VcnOCID)
 		return nil, err
 	}
 	if len(*subnets) == 0 {
-		return nil, fmt.Errorf("no subnets defined for VCN: %s", c.config.Auth.VcnOCID)
+		return nil, fmt.Errorf("no subnets defined for VCN: %s", c.config.VcnOCID)
 	}
 
 	var running []core.Instance
 	var page *string
 	for {
 		vnicAttachmentsRequest := core.ListVnicAttachmentsRequest{
-			CompartmentId: &c.config.Auth.CompartmentOCID,
+			CompartmentId: &c.config.CompartmentOCID,
 			Page:          page,
 		}
 		vnicAttachments, err := func() (core.ListVnicAttachmentsResponse, error) {
@@ -313,7 +313,7 @@ func (c *client) findInstanceByNodeNameIsDisplayName(nodeName string) (*core.Ins
 	var page *string
 	for {
 		listInstancesRequest := core.ListInstancesRequest{
-			CompartmentId: &c.config.Auth.CompartmentOCID,
+			CompartmentId: &c.config.CompartmentOCID,
 			DisplayName:   &nodeName,
 			Page:          page,
 		}
