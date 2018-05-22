@@ -39,23 +39,26 @@ var ociRegions = map[string]string{
 // AuthConfig holds the configuration required for communicating with the OCI
 // API.
 type AuthConfig struct {
-	Region               string `yaml:"region"`
-	RegionKey            string `yaml:"regionKey"`
-	TenancyOCID          string `yaml:"tenancy"`
+	Region      string `yaml:"region"`
+	RegionKey   string `yaml:"regionKey"`
+	TenancyOCID string `yaml:"tenancy"`
+	// CompartmentOCID is DEPRECATED under AuthConfig and will be removed in a later release
 	CompartmentOCID      string `yaml:"compartment"`
 	UserOCID             string `yaml:"user"`
 	PrivateKey           string `yaml:"key"`
 	Passphrase           string `yaml:"passphrase"`
 	PrivateKeyPassphrase string `yaml:"key_passphase"` // DEPRECIATED
 	Fingerprint          string `yaml:"fingerprint"`
-	VcnOCID              string `yaml:"vcn"`
+	// VcnOCID is DEPRECATED under AuthConfig and will be removed in a later release
+	VcnOCID string `yaml:"vcn"`
 }
 
 // Config holds the configuration for the OCI flexvolume driver.
 type Config struct {
-	Auth AuthConfig `yaml:"auth"`
-
-	metadata instancemeta.Interface
+	Auth            AuthConfig `yaml:"auth"`
+	CompartmentOCID string     `yaml:"compartment"`
+	VcnOCID         string     `yaml:"vcn"`
+	metadata        instancemeta.Interface
 }
 
 // NewConfig creates a new Config based on the contents of the given io.Reader.
@@ -75,6 +78,8 @@ func NewConfig(r io.Reader) (*Config, error) {
 		return nil, err
 	}
 
+	c.Complete()
+
 	c.metadata = instancemeta.New()
 
 	if err := c.setDefaults(); err != nil {
@@ -86,6 +91,18 @@ func NewConfig(r io.Reader) (*Config, error) {
 	}
 
 	return c, nil
+}
+
+// Complete the config applying defaults / overrides.
+func (c *Config) Complete() {
+	if c.CompartmentOCID == "" && c.Auth.CompartmentOCID != "" {
+		log.Print("cloud-provider config: \"auth.compartment\" is DEPRECIATED and will be removed in a later release. Please set \"compartment\".")
+		c.CompartmentOCID = c.Auth.CompartmentOCID
+	}
+	if c.VcnOCID == "" && c.Auth.VcnOCID != "" {
+		log.Print("cloud-provider config: \"auth.vcn\" is DEPRECIATED and will be removed in a later release. Please set \"vcn\".")
+		c.VcnOCID = c.Auth.VcnOCID
+	}
 }
 
 // ConfigFromFile reads the file at the given path and marshals it into a Config
@@ -100,7 +117,7 @@ func ConfigFromFile(path string) (*Config, error) {
 }
 
 func (c *Config) setDefaults() error {
-	if c.Auth.Region == "" || c.Auth.CompartmentOCID == "" {
+	if c.Auth.Region == "" || c.CompartmentOCID == "" {
 		meta, err := c.metadata.Get()
 		if err != nil {
 			return err
@@ -109,8 +126,8 @@ func (c *Config) setDefaults() error {
 		if c.Auth.Region == "" {
 			c.Auth.Region = meta.Region
 		}
-		if c.Auth.CompartmentOCID == "" {
-			c.Auth.CompartmentOCID = meta.CompartmentOCID
+		if c.CompartmentOCID == "" {
+			c.CompartmentOCID = meta.CompartmentOCID
 		}
 	}
 
@@ -172,7 +189,7 @@ func validateConfig(c *Config) field.ErrorList {
 	if c.Auth.TenancyOCID == "" {
 		errList = append(errList, field.Required(field.NewPath("tenancy"), ""))
 	}
-	if c.Auth.CompartmentOCID == "" {
+	if c.CompartmentOCID == "" {
 		errList = append(errList, field.Required(field.NewPath("compartment"), ""))
 	}
 	if c.Auth.UserOCID == "" {
@@ -184,7 +201,7 @@ func validateConfig(c *Config) field.ErrorList {
 	if c.Auth.Fingerprint == "" {
 		errList = append(errList, field.Required(field.NewPath("fingerprint"), ""))
 	}
-	if c.Auth.VcnOCID == "" {
+	if c.VcnOCID == "" {
 		errList = append(errList, field.Required(field.NewPath("vcn"), ""))
 	}
 
