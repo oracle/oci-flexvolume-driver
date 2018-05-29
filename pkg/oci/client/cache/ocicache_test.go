@@ -22,6 +22,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/oracle/oci-go-sdk/core"
 )
 
@@ -47,9 +49,7 @@ func TestCache(t *testing.T) {
 	if !ok {
 		t.Error("test not found")
 	}
-	if *value != testVnic {
-		t.Error("Key not equal to test")
-	}
+	assert.Equal(t, *value, testVnic, "Key not equal to test")
 	err = cache.Close()
 	if err != nil {
 		t.Error(err)
@@ -89,9 +89,7 @@ func TestCacheLoadSave(t *testing.T) {
 	if !ok {
 		t.Error("test not found")
 	}
-	if *value != testVnic {
-		t.Error("Key not equal to test")
-	}
+	assert.Equal(t, *value, testVnic, "Key not equal to test")
 	err = firstCache.Close()
 	if err != nil {
 		t.Error(err)
@@ -130,9 +128,7 @@ func TestCacheParallel(t *testing.T) {
 		if !ok {
 			t.Error("test not found")
 		}
-		if *value != testVnic {
-			t.Error("Key not equal to test")
-		}
+		assert.Equal(t, *value, testVnic, "Key not equal to test")
 		err = cache.Close()
 		if err != nil {
 			t.Error(err)

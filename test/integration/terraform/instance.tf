@@ -22,23 +22,25 @@ data "oci_core_images" "os_image_ocid" {
 
 resource "oci_core_instance" "instance" {
   availability_domain = "${var.availability_domain}"
-  compartment_id = "${var.compartment_ocid}"
-  display_name = "${var.test_id}"
-  image = "${lookup(data.oci_core_images.os_image_ocid.images[0], "id")}"
-  shape = "VM.Standard1.1"
-  subnet_id =  "${var.subnet_ocid}"
+  compartment_id      = "${var.compartment_ocid}"
+  display_name        = "${var.test_id}"
+  image               = "${lookup(data.oci_core_images.os_image_ocid.images[0], "id")}"
+  shape               = "VM.Standard1.1"
+  subnet_id           = "${var.subnet_ocid}"
+
   metadata {
     ssh_authorized_keys = "${var.ssh_public_key}"
   }
+
   timeouts {
     create = "60m"
   }
 }
 
 data "oci_core_vnic_attachments" "instance_vnics" {
-  compartment_id = "${var.compartment_ocid}"
+  compartment_id      = "${var.compartment_ocid}"
   availability_domain = "${var.availability_domain}"
-  instance_id = "${oci_core_instance.instance.id}"
+  instance_id         = "${oci_core_instance.instance.id}"
 }
 
 # Gets the OCID of the first (default) vNIC
@@ -48,9 +50,10 @@ data "oci_core_vnic" "instance_vnic" {
 
 data "template_file" "driver_config" {
   template = "${file("${path.module}/config.yaml.tpl")}"
+
   vars {
-      key = "${ indent(4, file("${path.module}/_tmp/oci_api_key.pem")) }"
-      vcn = "${var.vcn}"
+    key = "${ indent(4, file("${path.module}/_tmp/oci_api_key.pem")) }"
+    vcn = "${var.vcn}"
   }
 }
 
@@ -60,13 +63,13 @@ resource null_resource "instance" {
   ]
 
   triggers {
-     instance_id = "${oci_core_instance.instance.id}"
+    instance_id = "${oci_core_instance.instance.id}"
   }
 
   connection {
-    type = "ssh"
-    host = "${data.oci_core_vnic.instance_vnic.public_ip_address}"
-    user = "opc"
+    type        = "ssh"
+    host        = "${data.oci_core_vnic.instance_vnic.public_ip_address}"
+    user        = "opc"
     private_key = "${var.ssh_private_key}"
   }
 
@@ -76,7 +79,7 @@ resource null_resource "instance" {
   }
 
   provisioner "file" "driver_config" {
-    content = "${data.template_file.driver_config.rendered}"
+    content     = "${data.template_file.driver_config.rendered}"
     destination = "/home/opc/config.yaml"
   }
 
