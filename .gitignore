@@ -1,6 +1,11 @@
 # Ignore env
 wercker.env
 
+# Ignore keys
+*.pem
+*.pub
+instance_key
+
 # Ignore builds
 dist/
 .go/
