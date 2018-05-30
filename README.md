@@ -22,7 +22,7 @@ The recommended way to install the driver is through the daemonset installer mec
 kubectl apply -f https://github.com/oracle/oci-flexvolume-driver/releases/download/${flexvolume_driver_version}/oci-flexvolume-driver.yaml
 ```
 
-You'll still need to add the config file as per below (we'll fix that with Instance Principals support soon).
+You'll need to add the config file as per below.
 
 ### Manually
 
@@ -61,6 +61,28 @@ auth:
 
 If `"region"` and/or `"compartment"` are not specified in the config file
 they will be retrieved from the hosts [OCI metadata service][4].
+
+##### Using instance principals
+
+To authenticate using [instance principals][9] the following policies must first be 
+applied to the dynamic group of instances that intend to use the flexvolume driver:
+
+```
+"Allow group id ${oci_identity_group.flexvolume_driver_group.id} to read vnic-attachments in compartment id ${var.compartment_ocid}",
+"Allow group id ${oci_identity_group.flexvolume_driver_group.id} to read vnics in compartment id ${var.compartment_ocid}",
+"Allow group id ${oci_identity_group.flexvolume_driver_group.id} to read instances in compartment id ${var.compartment_ocid}",
+"Allow group id ${oci_identity_group.flexvolume_driver_group.id} to read subnets in compartment id ${var.compartment_ocid}",
+"Allow group id ${oci_identity_group.flexvolume_driver_group.id} to use volumes in compartment id ${var.compartment_ocid}",
+"Allow group id ${oci_identity_group.flexvolume_driver_group.id} to use instances in compartment id ${var.compartment_ocid}",
+"Allow group id ${oci_identity_group.flexvolume_driver_group.id} to manage volume-attachments in compartment id ${var.compartment_ocid}",
+```
+
+The configuration file requires a simple configuration in the following format:
+
+```yaml
+---
+useInstancePrincipals: true
+```
 
 #### Extra configuration values
 
@@ -234,3 +256,4 @@ See [LICENSE](LICENSE) for more details.
 [6]: https://github.com/oracle/oci-volume-provisioner
 [7]: https://github.com/kubernetes/kubernetes/issues/44737
 [8]: https://docs.us-phoenix-1.oraclecloud.com/Content/Identity/Concepts/policies.htm
+[9]: https://docs.us-phoenix-1.oraclecloud.com/Content/Identity/Tasks/callingservicesfrominstances.htm

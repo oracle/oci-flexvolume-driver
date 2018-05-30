@@ -55,7 +55,8 @@ type AuthConfig struct {
 type Config struct {
 	Auth AuthConfig `yaml:"auth"`
 
-	metadata instancemeta.Interface
+	metadata              instancemeta.Interface
+	UseInstancePrincipals bool `yaml:"useInstancePrincipals"`
 }
 
 // NewConfig creates a new Config based on the contents of the given io.Reader.
@@ -157,36 +158,63 @@ func (c *Config) setRegionFields(region string) error {
 
 // validate checks that all required fields are populated.
 func (c *Config) validate() error {
-	return validateConfig(c).ToAggregate()
+	return ValidateConfig(c).ToAggregate()
 }
 
-func validateConfig(c *Config) field.ErrorList {
+func validateAuthConfig(c *Config, fldPath *field.Path) field.ErrorList {
 	errList := field.ErrorList{}
 
-	if c.Auth.Region == "" {
-		errList = append(errList, field.Required(field.NewPath("region"), ""))
+	if c.UseInstancePrincipals {
+		if c.Auth.Region != "" {
+			errList = append(errList, field.Forbidden(fldPath.Child("region"), "cannot be used when useInstancePrincipals is enabled"))
+		}
+		if c.Auth.TenancyOCID != "" {
+			errList = append(errList, field.Forbidden(fldPath.Child("tenancy"), "cannot be used when useInstancePrincipals is enabled"))
+		}
+		if c.Auth.UserOCID != "" {
+			errList = append(errList, field.Forbidden(fldPath.Child("user"), "cannot be used when useInstancePrincipals is enabled"))
+		}
+		if c.Auth.PrivateKey != "" {
+			errList = append(errList, field.Forbidden(fldPath.Child("key"), "cannot be used when useInstancePrincipals is enabled"))
+		}
+		if c.Auth.Fingerprint != "" {
+			errList = append(errList, field.Forbidden(fldPath.Child("fingerprint"), "cannot be used when useInstancePrincipals is enabled"))
+		}
+	} else {
+		if c.Auth.Region == "" {
+			errList = append(errList, field.Required(fldPath.Child("region"), ""))
+		}
+		if c.Auth.TenancyOCID == "" {
+			errList = append(errList, field.Required(fldPath.Child("tenancy"), ""))
+		}
+		if c.Auth.CompartmentOCID == "" {
+			errList = append(errList, field.Required(fldPath.Child("compartment"), ""))
+		}
+		if c.Auth.UserOCID == "" {
+			errList = append(errList, field.Required(fldPath.Child("user"), ""))
+		}
+		if c.Auth.PrivateKey == "" {
+			errList = append(errList, field.Required(fldPath.Child("key"), ""))
+		}
+		if c.Auth.Fingerprint == "" {
+			errList = append(errList, field.Required(fldPath.Child("fingerprint"), ""))
+		}
 	}
+
 	if c.Auth.RegionKey == "" {
-		errList = append(errList, field.Required(field.NewPath("region_key"), ""))
+		errList = append(errList, field.Required(fldPath.Child("region_key"), ""))
 	}
-	if c.Auth.TenancyOCID == "" {
-		errList = append(errList, field.Required(field.NewPath("tenancy"), ""))
-	}
-	if c.Auth.CompartmentOCID == "" {
-		errList = append(errList, field.Required(field.NewPath("compartment"), ""))
-	}
-	if c.Auth.UserOCID == "" {
-		errList = append(errList, field.Required(field.NewPath("user"), ""))
-	}
-	if c.Auth.PrivateKey == "" {
-		errList = append(errList, field.Required(field.NewPath("key"), ""))
-	}
-	if c.Auth.Fingerprint == "" {
-		errList = append(errList, field.Required(field.NewPath("fingerprint"), ""))
-	}
+
 	if c.Auth.VcnOCID == "" {
-		errList = append(errList, field.Required(field.NewPath("vcn"), ""))
+		errList = append(errList, field.Required(fldPath.Child("vcn"), ""))
 	}
 
 	return errList
+}
+
+// ValidateConfig validates the OCI Flexible Volume Provisioner config file.
+func ValidateConfig(c *Config) field.ErrorList {
+	allErrs := field.ErrorList{}
+	allErrs = append(allErrs, validateAuthConfig(c, field.NewPath("auth"))...)
+	return allErrs
 }
