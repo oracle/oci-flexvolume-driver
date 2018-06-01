@@ -7,7 +7,7 @@ variable "user_ocid" {
 }
 
 variable "fingerprint" {
-  default = "2c:29:18:b4:86:a5:d4:02:07:f4:41:6f:7d:64:02:11"
+  default = "f1:d8:e7:75:8d:3a:81:a0:18:2f:fa:8a:8f:64:44:66"
 }
 
 variable "private_key_path" {
@@ -29,18 +29,18 @@ variable "region" {
 variable "test_id" {}
 
 provider "oci" {
-  tenancy_ocid = "${var.tenancy_ocid}"
-  user_ocid = "${var.user_ocid}"
-  fingerprint = "${var.fingerprint}"
+  tenancy_ocid     = "${var.tenancy_ocid}"
+  user_ocid        = "${var.user_ocid}"
+  fingerprint      = "${var.fingerprint}"
   private_key_path = "${var.private_key_path}"
-  region = "${var.region}"
+  region           = "${var.region}"
 }
 
 resource "oci_core_volume" "test_volume" {
   availability_domain = "${var.availability_domain}"
-  compartment_id = "${var.compartment_ocid}"
-  display_name = "flexvolumesystemtest${var.test_id}"
-  size_in_gbs = "50"
+  compartment_id      = "${var.compartment_ocid}"
+  display_name        = "flexvolumesystemtest${var.test_id}"
+  size_in_gbs         = "50"
 }
 
 output "volume_ocid" {

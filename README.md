@@ -74,6 +74,28 @@ kubectl create secret generic oci-flexvolume-driver \
 
 Once the Secret is set and the daemonsets deployed, the configuration file will be placed onto the master nodes.
 
+##### Using instance principals
+
+To authenticate using [instance principals][9] the following policies must first be 
+applied to the dynamic group of instances that intend to use the flexvolume driver:
+
+```
+"Allow group id ${oci_identity_group.flexvolume_driver_group.id} to read vnic-attachments in compartment id ${var.compartment_ocid}",
+"Allow group id ${oci_identity_group.flexvolume_driver_group.id} to read vnics in compartment id ${var.compartment_ocid}",
+"Allow group id ${oci_identity_group.flexvolume_driver_group.id} to read instances in compartment id ${var.compartment_ocid}",
+"Allow group id ${oci_identity_group.flexvolume_driver_group.id} to read subnets in compartment id ${var.compartment_ocid}",
+"Allow group id ${oci_identity_group.flexvolume_driver_group.id} to use volumes in compartment id ${var.compartment_ocid}",
+"Allow group id ${oci_identity_group.flexvolume_driver_group.id} to use instances in compartment id ${var.compartment_ocid}",
+"Allow group id ${oci_identity_group.flexvolume_driver_group.id} to manage volume-attachments in compartment id ${var.compartment_ocid}",
+```
+
+The configuration file requires a simple configuration in the following format:
+
+```yaml
+---
+useInstancePrincipals: true
+```
+
 #### Extra configuration values
 
 You can set these in the environment to override the default values.
@@ -246,3 +268,4 @@ See [LICENSE](LICENSE) for more details.
 [6]: https://github.com/oracle/oci-volume-provisioner
 [7]: https://github.com/kubernetes/kubernetes/issues/44737
 [8]: https://docs.us-phoenix-1.oraclecloud.com/Content/Identity/Concepts/policies.htm
+[9]: https://docs.us-phoenix-1.oraclecloud.com/Content/Identity/Tasks/callingservicesfrominstances.htm
