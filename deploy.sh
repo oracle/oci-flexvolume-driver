@@ -24,12 +24,21 @@ driver_dir="/flexmnt/$VENDOR${VENDOR:+"~"}${DRIVER}"
 
 LOG_FILE="$driver_dir/oci_flexvolume_driver.log"
 
+config_file_name="config.yaml"
+config_tmp_dir="/tmp"
+
+CONFIG_FILE="$config_tmp_dir/$config_file_name"
+
 if [ ! -d "$driver_dir" ]; then
   mkdir "$driver_dir"
 fi
 
 cp "/$DRIVER" "$driver_dir/.$DRIVER"
 mv -f "$driver_dir/.$DRIVER" "$driver_dir/$DRIVER"
+
+if [ -f "$CONFIG_FILE" ]; then
+  cp  "$CONFIG_FILE"  "$driver_dir/$config_file_name"
+fi
 
 while : ; do
   touch $LOG_FILE

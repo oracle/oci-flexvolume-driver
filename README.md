@@ -16,13 +16,13 @@ installed on every node in your Kubernetes cluster.
 
 ### Kubernetes DaemonSet Installer
 
-The recommended way to install the driver is through the daemonset installer mechanism.
+The recommended way to install the driver is through the daemonset installer mechanism. This will create two daemonsets, one specifically for master nodes, allowing configuration via a Kubernetes Secret, and one for worker nodes.
 
 ```
 kubectl apply -f https://github.com/oracle/oci-flexvolume-driver/releases/download/${flexvolume_driver_version}/oci-flexvolume-driver.yaml
 ```
 
-You'll need to add the config file as per below.
+You'll still need to add the config file manually or as a kubernetes secret.
 
 ### Manually
 
@@ -61,6 +61,18 @@ auth:
 
 If `"region"` and/or `"compartment"` are not specified in the config file
 they will be retrieved from the hosts [OCI metadata service][4].
+
+### Submit configuration as a Kubernetes secret
+
+The configuration file above can be submitted as a Kubernetes Secret onto the master nodes.
+
+```
+kubectl create secret generic oci-flexvolume-driver \
+    -n kube-system \
+    --from-file=config.yaml=config.yaml
+```
+
+Once the Secret is set and the daemonsets deployed, the configuration file will be placed onto the master nodes.
 
 ##### Using instance principals
 
