@@ -3,31 +3,39 @@
 
 [[projects]]
   name = "github.com/oracle/oci-go-sdk"
-  packages = ["common","core"]
-  revision = "8090aeb474ad994446b2db294725e3d6c0d95327"
-  version = "v1.0.0"
+  packages = [
+    "common",
+    "common/auth",
+    "core"
+  ]
+  revision = "483be76c8d79ca38dd2e7e7d1ee0047d5cc2c66b"
+  version = "v1.6.0"
 
 [[projects]]
-  branch = "v2"
   name = "gopkg.in/yaml.v2"
   packages = ["."]
-  revision = "eb3733d160e74a9c7e442f435eb3bea458e1d19f"
+  revision = "5420a8b6744d3b0345ab293f6fcba19c978f1183"
+  version = "v2.2.1"
 
 [[projects]]
   branch = "master"
   name = "k8s.io/apimachinery"
-  packages = ["pkg/util/errors","pkg/util/sets","pkg/util/validation/field"]
-  revision = "3b05bbfa0a45413bfa184edbf9af617e277962fb"
+  packages = [
+    "pkg/util/errors",
+    "pkg/util/sets",
+    "pkg/util/validation/field"
+  ]
+  revision = "95fc0dd6dd9c7229d2c5c8ae9676963564540b7c"
 
 [[projects]]
   branch = "master"
   name = "k8s.io/utils"
   packages = ["exec"]
-  revision = "4fe312863be2155a7b68acd2aff1c9221b24e68c"
+  revision = "258e2a2fa64568210fbd6267cf1d8fd87c3cb86e"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "45af2d52a05d3f8ef7529208b13076d8394d137043342599e73885dcb559d022"
+  inputs-digest = "2b2ff53574e31d63a714f879d460ecc18494bed9686a879810f56990afc23440"
   solver-name = "gps-cdcl"
   solver-version = 1
