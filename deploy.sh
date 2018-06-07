@@ -40,6 +40,12 @@ if [ -f "$CONFIG_FILE" ]; then
   cp  "$CONFIG_FILE"  "$driver_dir/$config_file_name"
 fi
 
+function _trap {
+  rm "$driver_dir/$DRIVER"
+  rm "$driver_dir/$config_file_name"
+}
+trap _trap EXIT
+
 while : ; do
   touch $LOG_FILE
   tail -f $LOG_FILE
