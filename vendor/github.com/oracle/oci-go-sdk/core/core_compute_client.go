@@ -148,6 +148,7 @@ func (client ComputeClient) AttachVolume(ctx context.Context, request AttachVolu
 	}
 	ociResponse, err = common.Retry(ctx, request, client.attachVolume, policy)
 	if err != nil {
+		err = fmt.Errorf(">>>>>>>>>Failed to attach volume")
 		return
 	}
 	if convertedResponse, ok := ociResponse.(AttachVolumeResponse); ok {
