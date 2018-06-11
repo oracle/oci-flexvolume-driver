@@ -11,8 +11,9 @@ package core
 import (
 	"context"
 	"fmt"
-	"github.com/oracle/oci-go-sdk/common"
 	"net/http"
+
+	"github.com/oracle/oci-go-sdk/common"
 )
 
 //ComputeClient a client for Compute
@@ -173,7 +174,7 @@ func (client ComputeClient) attachVolume(ctx context.Context, request common.OCI
 		return response, err
 	}
 
-	err = common.UnmarshalResponseWithPolymorphicBody(httpResponse, &response, &volumeattachment{})
+	// err = common.UnmarshalResponseWithPolymorphicBody(httpResponse, &response, &volumeattachment{})
 	return response, err
 }
 
