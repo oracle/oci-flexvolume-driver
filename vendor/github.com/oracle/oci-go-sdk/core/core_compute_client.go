@@ -11,6 +11,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/oracle/oci-go-sdk/common"
@@ -172,6 +173,7 @@ func (client ComputeClient) attachVolume(ctx context.Context, request common.OCI
 	defer common.CloseBodyIfValid(httpResponse)
 	response.RawResponse = httpResponse
 	if err != nil {
+		log.Printf(">>>>>>>>>AttachVolumeResponse: %+v", httpResponse)
 		return response, err
 	}
 
