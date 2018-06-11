@@ -174,7 +174,7 @@ func (client ComputeClient) attachVolume(ctx context.Context, request common.OCI
 		return response, err
 	}
 
-	// err = common.UnmarshalResponseWithPolymorphicBody(httpResponse, &response, &volumeattachment{})
+	err = common.UnmarshalResponseWithPolymorphicBody(httpResponse, &response, &volumeattachment{})
 	return response, err
 }
 
