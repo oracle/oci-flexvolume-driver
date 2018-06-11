@@ -114,7 +114,7 @@ func (d OCIFlexvolumeDriver) Attach(opts flexvolume.Options, nodeName string) fl
 	attachment, statusCode, err := c.AttachVolume(*instance.Id, volumeOCID)
 	if err != nil {
 		if statusCode != 409 {
-			log.Printf("AttachVolume: %+v", err)
+			log.Printf("AttachVolume: %+v %q", err, statusCode)
 			return flexvolume.Fail(errors.New("Failed to attach volume" + err.Error()))
 		}
 		// If we get a 409 conflict response when attaching we
