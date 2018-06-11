@@ -149,6 +149,7 @@ func (client ComputeClient) AttachVolume(ctx context.Context, request AttachVolu
 	}
 	ociResponse, err = common.Retry(ctx, request, client.attachVolume, policy)
 	if err != nil {
+		log.Printf(">>>>>>>>>AttachVolumeResponse OCI response: %+v", ociResponse.HTTPResponse())
 		err = fmt.Errorf(">>>>>>>>>Failed to attach volume")
 		return
 	}
