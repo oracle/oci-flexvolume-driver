@@ -410,6 +410,9 @@ func (c *client) AttachVolume(instanceId, volumeId string) (core.VolumeAttachmen
 		if r.RawResponse != nil {
 			return nil, r.RawResponse.StatusCode, err
 		}
+		if r.HTTPResponse() != nil {
+			return nil, r.HTTPResponse().StatusCode, err
+		}
 		return nil, missingStatusCode, err
 	}
 	return r.VolumeAttachment, r.RawResponse.StatusCode, nil
