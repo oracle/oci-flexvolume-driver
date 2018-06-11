@@ -79,8 +79,6 @@ func NewConfig(r io.Reader) (*Config, error) {
 		return nil, err
 	}
 
-	c.Complete()
-
 	c.metadata = instancemeta.New()
 
 	if err := c.setDefaults(); err != nil {
@@ -92,18 +90,6 @@ func NewConfig(r io.Reader) (*Config, error) {
 	}
 
 	return c, nil
-}
-
-// Complete the config applying defaults / overrides.
-func (c *Config) Complete() {
-	if c.CompartmentOCID == "" && c.Auth.CompartmentOCID != "" {
-		log.Print("cloud-provider config: \"auth.compartment\" is DEPRECIATED and will be removed in a later release. Please set \"compartment\".")
-		c.CompartmentOCID = c.Auth.CompartmentOCID
-	}
-	if c.VcnOCID == "" && c.Auth.VcnOCID != "" {
-		log.Print("cloud-provider config: \"auth.vcn\" is DEPRECIATED and will be removed in a later release. Please set \"vcn\".")
-		c.VcnOCID = c.Auth.VcnOCID
-	}
 }
 
 // ConfigFromFile reads the file at the given path and marshals it into a Config
@@ -138,8 +124,18 @@ func (c *Config) setDefaults() error {
 	}
 
 	if c.Auth.Passphrase == "" && c.Auth.PrivateKeyPassphrase != "" {
-		log.Print("config: auth.key_passphrase is DEPRECIATED and will be removed in a later release. Please set auth.passphrase instead.")
+		log.Print("config: auth.key_passphrase is DEPRECATED and will be removed in a later release. Please set auth.passphrase instead.")
 		c.Auth.Passphrase = c.Auth.PrivateKeyPassphrase
+	}
+
+	if c.CompartmentOCID == "" && c.Auth.CompartmentOCID != "" {
+		log.Print("cloud-provider config: \"auth.compartment\" is DEPRECATED and will be removed in a later release. Please set \"compartment\".")
+		c.CompartmentOCID = c.Auth.CompartmentOCID
+	}
+
+	if c.VcnOCID == "" && c.Auth.VcnOCID != "" {
+		log.Print("cloud-provider config: \"auth.vcn\" is DEPRECATED and will be removed in a later release. Please set \"vcn\".")
+		c.VcnOCID = c.Auth.VcnOCID
 	}
 
 	return nil
@@ -178,52 +174,53 @@ func (c *Config) validate() error {
 	return ValidateConfig(c).ToAggregate()
 }
 
-func validateAuthConfig(c *Config, fldPath *field.Path) field.ErrorList {
+func validateAuthConfig(c *Config) field.ErrorList {
 	errList := field.ErrorList{}
+	authPath := field.NewPath("auth")
 
 	if c.UseInstancePrincipals {
 		if c.Auth.Region != "" {
-			errList = append(errList, field.Forbidden(fldPath.Child("region"), "cannot be used when useInstancePrincipals is enabled"))
+			errList = append(errList, field.Forbidden(authPath.Child("region"), "cannot be used when useInstancePrincipals is enabled"))
 		}
 		if c.Auth.TenancyOCID != "" {
-			errList = append(errList, field.Forbidden(fldPath.Child("tenancy"), "cannot be used when useInstancePrincipals is enabled"))
+			errList = append(errList, field.Forbidden(authPath.Child("tenancy"), "cannot be used when useInstancePrincipals is enabled"))
 		}
 		if c.Auth.UserOCID != "" {
-			errList = append(errList, field.Forbidden(fldPath.Child("user"), "cannot be used when useInstancePrincipals is enabled"))
+			errList = append(errList, field.Forbidden(authPath.Child("user"), "cannot be used when useInstancePrincipals is enabled"))
 		}
 		if c.Auth.PrivateKey != "" {
-			errList = append(errList, field.Forbidden(fldPath.Child("key"), "cannot be used when useInstancePrincipals is enabled"))
+			errList = append(errList, field.Forbidden(authPath.Child("key"), "cannot be used when useInstancePrincipals is enabled"))
 		}
 		if c.Auth.Fingerprint != "" {
-			errList = append(errList, field.Forbidden(fldPath.Child("fingerprint"), "cannot be used when useInstancePrincipals is enabled"))
+			errList = append(errList, field.Forbidden(authPath.Child("fingerprint"), "cannot be used when useInstancePrincipals is enabled"))
 		}
 	} else {
 		if c.Auth.Region == "" {
-			errList = append(errList, field.Required(fldPath.Child("region"), ""))
+			errList = append(errList, field.Required(authPath.Child("region"), ""))
 		}
 		if c.Auth.TenancyOCID == "" {
-			errList = append(errList, field.Required(fldPath.Child("tenancy"), ""))
+			errList = append(errList, field.Required(authPath.Child("tenancy"), ""))
 		}
-		if c.Auth.CompartmentOCID == "" {
-			errList = append(errList, field.Required(fldPath.Child("compartment"), ""))
+		if c.CompartmentOCID == "" {
+			errList = append(errList, field.Required(field.NewPath("compartment"), ""))
 		}
 		if c.Auth.UserOCID == "" {
-			errList = append(errList, field.Required(fldPath.Child("user"), ""))
+			errList = append(errList, field.Required(authPath.Child("user"), ""))
 		}
 		if c.Auth.PrivateKey == "" {
-			errList = append(errList, field.Required(fldPath.Child("key"), ""))
+			errList = append(errList, field.Required(authPath.Child("key"), ""))
 		}
 		if c.Auth.Fingerprint == "" {
-			errList = append(errList, field.Required(fldPath.Child("fingerprint"), ""))
+			errList = append(errList, field.Required(authPath.Child("fingerprint"), ""))
 		}
 	}
 
 	if c.Auth.RegionKey == "" {
-		errList = append(errList, field.Required(fldPath.Child("region_key"), ""))
+		errList = append(errList, field.Required(authPath.Child("region_key"), ""))
 	}
 
-	if c.Auth.VcnOCID == "" {
-		errList = append(errList, field.Required(fldPath.Child("vcn"), ""))
+	if c.VcnOCID == "" {
+		errList = append(errList, field.Required(field.NewPath("vcn"), ""))
 	}
 
 	return errList
@@ -232,6 +229,6 @@ func validateAuthConfig(c *Config, fldPath *field.Path) field.ErrorList {
 // ValidateConfig validates the OCI Flexible Volume Provisioner config file.
 func ValidateConfig(c *Config) field.ErrorList {
 	allErrs := field.ErrorList{}
-	allErrs = append(allErrs, validateAuthConfig(c, field.NewPath("auth"))...)
+	allErrs = append(allErrs, validateAuthConfig(c)...)
 	return allErrs
 }
