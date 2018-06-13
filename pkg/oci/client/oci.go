@@ -407,7 +407,7 @@ func (c *client) AttachVolume(instanceId, volumeId string) (core.VolumeAttachmen
 		return c.compute.AttachVolume(ctx, request)
 	}()
 	if err != nil {
-		if convertedError, ok := err.(common.ServiceError); ok {
+		if convertedError, ok := common.IsServiceError(err); ok {
 			log.Printf("AttachVolumeResponse: %d", convertedError.GetHTTPStatusCode())
 		} else {
 			err = fmt.Errorf("failed to convert OCIResponse into AttachVolumeResponse")
