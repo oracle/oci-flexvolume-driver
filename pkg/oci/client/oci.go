@@ -36,9 +36,10 @@ import (
 )
 
 const (
-	ociWaitDuration   = 1 * time.Second
-	ociMaxRetries     = 120
-	missingStatusCode = 555
+	ociWaitDuration = 1 * time.Second
+	ociMaxRetries   = 120
+	// MissingStatusCode used to identify the case where the status code is not returned
+	MissingStatusCode = 555
 )
 
 // Interface abstracts the OCI SDK and application specific convenience methods
@@ -407,19 +408,10 @@ func (c *client) AttachVolume(instanceId, volumeId string) (core.VolumeAttachmen
 		return c.compute.AttachVolume(ctx, request)
 	}()
 	if err != nil {
-		if convertedError, ok := common.IsServiceError(err); ok {
-			log.Printf("AttachVolumeResponse: %d", convertedError.GetHTTPStatusCode())
-		} else {
-			err = fmt.Errorf("failed to convert OCIResponse into AttachVolumeResponse")
-		}
-
 		if r.RawResponse != nil {
 			return nil, r.RawResponse.StatusCode, err
 		}
-		if r.HTTPResponse() != nil {
-			return nil, r.HTTPResponse().StatusCode, err
-		}
-		return nil, missingStatusCode, err
+		return nil, MissingStatusCode, err
 	}
 	return r.VolumeAttachment, r.RawResponse.StatusCode, nil
 }
