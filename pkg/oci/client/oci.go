@@ -33,6 +33,7 @@ import (
 	"github.com/oracle/oci-go-sdk/common"
 	"github.com/oracle/oci-go-sdk/common/auth"
 	"github.com/oracle/oci-go-sdk/core"
+	"github.com/oracle/oci-go-sdk/filestorage"
 )
 
 const (
@@ -70,12 +71,32 @@ type Interface interface {
 
 	// GetConfig returns the Config associated with the OCI API client.
 	GetConfig() *Config
+
+	// GetMountTargetForAD returns a mount target for a given AD.
+	GetMountTargetForAD(AvailabilityDomain string) (*filestorage.MountTarget, error)
+
+	// IsFileSystemAttached checks to see if the filesystem is attached to the mounttarget
+	IsFileSystemAttached(fileSystem *filestorage.FileSystem, mountTarget *filestorage.MountTarget, path string) (bool, error)
+
+	// AttachFileSystemToMountTarget attaches the filesystem to the mount target.
+	AttachFileSystemToMountTarget(fileSystem *filestorage.FileSystem, mountTarget *filestorage.MountTarget, path string) error
+
+	// DetachFileSystemToMountTarget detaches the filesystem from the mount target.
+	// trjl: TODO rename? -> DetachFileSystemFromMountTarget
+	DetachFileSystemToMountTarget(fileSystem *filestorage.FileSystem, mountTarget *filestorage.MountTarget, path string) error
+
+	// GetFilesystem returns the filesystem for a given id.
+	GetFileSystem(ocid string) (*filestorage.FileSystem, error)
+
+	// GetMountTargetIPs gets the mount target private ip addresses
+	GetMountTargetIPs(mountTarget *filestorage.MountTarget) ([]core.PrivateIp, error)
 }
 
 // client extends a barmetal.Client.
 type client struct {
 	compute *core.ComputeClient
 	network *core.VirtualNetworkClient
+	fss     *filestorage.FileStorageClient
 	config  *Config
 	ctx     context.Context
 	timeout time.Duration
@@ -520,4 +541,215 @@ func configureCustomTransport(baseClient *common.BaseClient) error {
 	}
 	httpClient.Transport = transport
 	return nil
+}
+
+func (c *client) getMountTargetOCIDForAD(AvailabilityDomain string) *string {
+	if strings.HasSuffix(AvailabilityDomain, "AD-1") {
+		return &c.config.Storage.MountTargetAd1OCID
+	}
+	if strings.HasSuffix(AvailabilityDomain, "AD-2") {
+		return &c.config.Storage.MountTargetAd2OCID
+	}
+	if strings.HasSuffix(AvailabilityDomain, "AD-3") {
+		return &c.config.Storage.MountTargetAd3OCID
+	}
+	return nil
+}
+
+func (c *client) GetMountTargetForAD(AvailabilityDomain string) (*filestorage.MountTarget, error) {
+	mountTargetOCID := c.getMountTargetOCIDForAD(AvailabilityDomain)
+	if mountTargetOCID == nil {
+		return nil, fmt.Errorf("Unable to get mount target for AD:%s", AvailabilityDomain)
+	}
+	ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+	defer cancel()
+	response, err := c.fss.GetMountTarget(ctx, filestorage.GetMountTargetRequest{MountTargetId: mountTargetOCID})
+	if err != nil {
+		return nil, err
+	}
+	return &response.MountTarget, nil
+}
+
+func (c *client) listExports(fileSystem *filestorage.FileSystem,
+	mountTarget *filestorage.MountTarget) (*[]filestorage.ExportSummary, error) {
+	request := filestorage.ListExportsRequest{
+		CompartmentId: fileSystem.CompartmentId,
+		FileSystemId:  fileSystem.Id,
+		ExportSetId:   mountTarget.ExportSetId,
+	}
+
+	var exports []filestorage.ExportSummary
+	for {
+		response, err := func() (filestorage.ListExportsResponse, error) {
+			ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+			defer cancel()
+			return c.fss.ListExports(ctx, request)
+		}()
+		if err != nil {
+			return nil, err
+		}
+
+		exports = append(exports, response.Items...)
+		if response.OpcNextPage == nil {
+			break
+		}
+		request.Page = response.OpcNextPage
+	}
+	return &exports, nil
+}
+
+func (c *client) findExport(fileSystem *filestorage.FileSystem, mountTarget *filestorage.MountTarget, path string) (*filestorage.ExportSummary, error) {
+	exports, err := c.listExports(fileSystem, mountTarget)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, export := range *exports {
+		if *export.Path == path {
+			return &export, nil
+		}
+	}
+	return nil, nil
+}
+
+func (c *client) IsFileSystemAttached(fileSystem *filestorage.FileSystem, mountTarget *filestorage.MountTarget, path string) (bool, error) {
+	exportSummary, err := c.findExport(fileSystem, mountTarget, path)
+	if err != nil {
+		log.Printf("Error in IsAttached findexports")
+		return false, err
+	}
+	if exportSummary != nil {
+		return true, nil
+	}
+	return false, nil
+}
+
+func (c *client) AttachFileSystemToMountTarget(fileSystem *filestorage.FileSystem, mountTarget *filestorage.MountTarget, path string) error {
+	exportSummary, err := c.findExport(fileSystem, mountTarget, path)
+	if err != nil {
+		return err
+	}
+	if exportSummary != nil {
+		log.Printf("Found export %s", *exportSummary.Id)
+		log.Printf("FileSystem:%s already mounted on MountTarget %s at %s", *fileSystem.Id, *mountTarget.Id, path)
+		return nil
+	}
+	response, err := func() (filestorage.CreateExportResponse, error) {
+		ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+		defer cancel()
+		return c.fss.CreateExport(ctx,
+			filestorage.CreateExportRequest{
+				CreateExportDetails: filestorage.CreateExportDetails{
+					ExportSetId:  mountTarget.ExportSetId,
+					FileSystemId: fileSystem.Id,
+					Path:         common.String(path),
+				},
+			})
+	}()
+	if err != nil {
+		return err
+	}
+	log.Printf("Filesystem Exported %s at %s(%s) %s", *fileSystem.Id, *mountTarget.Id, path, *response.Export.Id)
+
+	export := response.Export
+
+	for {
+		log.Printf("Export State:(%s)%s", *export.Id, export.LifecycleState)
+		if export.LifecycleState == filestorage.ExportLifecycleStateActive {
+			break
+		}
+
+		response, err := func() (filestorage.GetExportResponse, error) {
+			ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+			defer cancel()
+			return c.fss.GetExport(ctx, filestorage.GetExportRequest{
+				ExportId: export.Id,
+			})
+		}()
+		if err != nil {
+			return err
+		}
+		export = response.Export
+		time.Sleep(time.Second * 1)
+	}
+
+	return nil
+}
+
+func (c *client) DetachFileSystemToMountTarget(fileSystem *filestorage.FileSystem, mountTarget *filestorage.MountTarget, path string) error {
+	export, err := c.findExport(fileSystem, mountTarget, path)
+	if err != nil {
+		return err
+	}
+	if export == nil {
+		log.Printf("FileSystem:%s not mounted on MountTarget %s at %s", *fileSystem.Id, *mountTarget.Id, path)
+		return nil
+	}
+	log.Printf("Found export %s", *export.Id)
+
+	ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+	defer cancel()
+	_, err = c.fss.DeleteExport(ctx, filestorage.DeleteExportRequest{
+		ExportId: export.Id,
+	})
+	if err != nil {
+		return err
+	}
+
+	log.Printf("Deleted export %s", *export.Id)
+
+	/*exportid := export.Id
+
+	for {
+		response, err := func() (ffsw.GetExportResponse, error) {
+			ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+			defer cancel()
+			return c.ffsw.GetExport(ctx, ffsw.GetExportRequest{
+				ExportId: exportid,
+			})
+		}()
+		if err != nil {
+			return err
+		}
+		log.Printf("Export State:(%s)%s", *export.Id, export.LifecycleState)
+		if export.LifecycleState == ffsw.ExportSummaryLifecycleStateDeleted {
+			break
+		}
+		time.Sleep(time.Second * 1)
+
+		exportid = response.Export.Id
+
+	}*/
+
+	return nil
+}
+
+func (c *client) GetFileSystem(ocid string) (*filestorage.FileSystem, error) {
+	ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+	defer cancel()
+	response, err := c.fss.GetFileSystem(ctx,
+		filestorage.GetFileSystemRequest{FileSystemId: common.String(ocid)})
+	if err != nil {
+		return nil, err
+	}
+	return &response.FileSystem, nil
+}
+
+func (c *client) GetMountTargetIPs(mountTarget *filestorage.MountTarget) ([]core.PrivateIp, error) {
+	var privateIps []core.PrivateIp
+	for _, PrivateIPID := range mountTarget.PrivateIpIds {
+		response, err := func() (core.GetPrivateIpResponse, error) {
+			ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+			defer cancel()
+			return c.network.GetPrivateIp(ctx, core.GetPrivateIpRequest{
+				PrivateIpId: &PrivateIPID,
+			})
+		}()
+		if err != nil {
+			log.Printf("GetMountTargetIPS failed to get private IP for %s", PrivateIPID)
+			return nil, err
+		}
+		privateIps = append(privateIps, response.PrivateIp)
+	}
+	return privateIps, nil
 }
