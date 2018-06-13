@@ -15,6 +15,7 @@
 package driver
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -24,7 +25,6 @@ import (
 	"github.com/oracle/oci-flexvolume-driver/pkg/flexvolume"
 	"github.com/oracle/oci-flexvolume-driver/pkg/iscsi"
 	"github.com/oracle/oci-flexvolume-driver/pkg/oci/client"
-
 	"github.com/oracle/oci-go-sdk/core"
 )
 
@@ -99,12 +99,12 @@ func deriveVolumeOCID(regionKey string, volumeName string) string {
 func (d OCIFlexvolumeDriver) Attach(opts flexvolume.Options, nodeName string) flexvolume.DriverStatus {
 	c, err := client.New(GetConfigPath())
 	if err != nil {
-		return flexvolume.Fail(err)
+		return flexvolume.Fail(errors.New("Failed to create new client from config path " + err.Error()))
 	}
 
 	instance, err := c.GetInstanceByNodeName(nodeName)
 	if err != nil {
-		return flexvolume.Fail(err)
+		return flexvolume.Fail(errors.New("Failed to get instance by node name " + err.Error()))
 	}
 
 	volumeOCID := deriveVolumeOCID(c.GetConfig().Auth.RegionKey, opts["kubernetes.io/pvOrVolumeName"])
@@ -113,16 +113,18 @@ func (d OCIFlexvolumeDriver) Attach(opts flexvolume.Options, nodeName string) fl
 
 	attachment, statusCode, err := c.AttachVolume(*instance.Id, volumeOCID)
 	if err != nil {
-		if statusCode != 409 {
-			log.Printf("AttachVolume: %+v", err)
-			return flexvolume.Fail(err)
+		// NOTE: This is a temporary fix, until the oci-go-sdk restores its behaviour where
+		// an httpStatusCode can be retrieved in case of an error
+		if statusCode != 409 || !(statusCode != client.MissingStatusCode && strings.Contains(err.Error(), "409")) {
+			log.Printf("AttachVolume: %+v %d", err, statusCode)
+			return flexvolume.Fail(errors.New("Failed to attach volume " + err.Error()))
 		}
 		// If we get a 409 conflict response when attaching we
 		// presume that the device is already attached.
 		log.Printf("Attach(): Volume %q already attached.", volumeOCID)
 		attachment, err = c.FindVolumeAttachment(volumeOCID)
 		if err != nil {
-			return flexvolume.Fail(err)
+			return flexvolume.Fail(errors.New("Failed to find volume attachment " + err.Error()))
 		}
 		if *attachment.GetInstanceId() != *instance.Id {
 			return flexvolume.Fail("Already attached to instance: ", *instance.Id)
