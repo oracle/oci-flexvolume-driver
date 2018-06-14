@@ -84,26 +84,6 @@ type Driver interface {
 	Unmount(mountDir string) DriverStatus
 }
 
-// ExitWithResult outputs the given Result and exits with the appropriate exit
-// code.
-func ExitWithResult(result DriverStatus) {
-	code := 1
-	if result.Status == StatusSuccess || result.Status == StatusNotSupported {
-		code = 0
-	}
-
-	res, err := json.Marshal(result)
-	if err != nil {
-		log.Printf("Error marshaling result: %v", err)
-		fmt.Fprintln(out, `{"status":"Failure","message":"Error marshaling result to JSON"}`)
-	} else {
-		s := string(res)
-		log.Printf("Command result: %s", s)
-		fmt.Fprintln(out, s)
-	}
-	exit(code)
-}
-
 // Fail creates a StatusFailure Result with a given message.
 func Fail(a ...interface{}) DriverStatus {
 	msg := fmt.Sprint(a...)
@@ -285,4 +265,5 @@ func ExecDriver(driver Driver, args []string) DriverStatus {
 	default:
 		return Failf("invalid command; got ", args)
 	}
+	return Failf("Unexpected condition")
 }
