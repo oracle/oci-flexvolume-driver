@@ -20,6 +20,8 @@ import (
 	"io"
 	"log"
 	"os"
+	"path"
+	"strings"
 )
 
 // Defined to enable overriding in tests.
@@ -67,6 +69,8 @@ const (
 	OptionKeyPodUID       = "kubernetes.io/pod.uid"
 
 	OptionKeyServiceAccountName = "kubernetes.io/serviceAccount.name"
+
+	DefaultSymlinkDirectory = "oci-bvs"
 )
 
 // Driver is the main Flexvolume interface.
@@ -143,12 +147,26 @@ func processOpts(optsStr string) (Options, error) {
 
 // ExecDriver executes the appropriate FlexvolumeDriver command based on
 // recieved call-out.
-func ExecDriver(driver Driver, args []string) {
+func ExecDriver(drivers map[string]Driver, args []string) {
 	if len(args) < 2 {
 		ExitWithResult(Fail("Expected at least one argument"))
 	}
 
 	log.Printf("'%s %s' called with %s", args[0], args[1], args[2:])
+
+	driver := drivers[DefaultSymlinkDirectory] //Block volume is default
+
+	dir := path.Base(args[0])
+	dir = strings.TrimPrefix(dir, "oracle~")
+
+	if dir != "oci" && dir != DefaultSymlinkDirectory {
+		driver = drivers[dir]
+		if driver == nil {
+			ExitWithResult(Fail("No driver found for ", dir))
+		}
+	}
+
+	log.Printf("Using %s driver", dir)
 
 	switch args[1] {
 	// <driver executable> init

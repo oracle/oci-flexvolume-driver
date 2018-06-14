@@ -20,7 +20,9 @@ set -o pipefail
 VENDOR=oracle
 DRIVER=oci
 
-driver_dir="/flexmnt/$VENDOR${VENDOR:+"~"}${DRIVER}"
+ORACLE_OCI_FOLDER=$VENDOR${VENDOR:+"~"}${DRIVER}
+
+driver_dir="/flexmnt/$ORACLE_OCI_FOLDER"
 
 LOG_FILE="$driver_dir/oci_flexvolume_driver.log"
 
@@ -33,8 +35,14 @@ if [ ! -d "$driver_dir" ]; then
   mkdir "$driver_dir"
 fi
 
+if [ ! -d "$driver_dir-bvs" ]; then
+  mkdir "$driver_dir-bvs"
+fi
+
 cp "/$DRIVER" "$driver_dir/.$DRIVER"
 mv -f "$driver_dir/.$DRIVER" "$driver_dir/$DRIVER"
+
+ln -sf "../$ORACLE_OCI_FOLDER/$DRIVER" "$driver_dir-bvs/$DRIVER-bvs"
 
 if [ -f "$CONFIG_FILE" ]; then
   cp  "$CONFIG_FILE"  "$driver_dir/$config_file_name"
