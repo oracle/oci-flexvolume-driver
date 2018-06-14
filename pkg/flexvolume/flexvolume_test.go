@@ -59,8 +59,7 @@ func TestNoVolumeIDDispatch(t *testing.T) {
 		[]string{"oci", "attach", noVolIDTestOps, "nodeName"})
 
 	expected := DriverStatus{
-		Status:  "Failure",
-		Message: "key 'kubernetes.io/pvOrVolumeName' not found in attach options",
+		Status: "Not supported",
 	}
 	assertFailure(t, expected, status)
 }
