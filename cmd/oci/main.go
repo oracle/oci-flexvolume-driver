@@ -50,5 +50,10 @@ func main() {
 	log.SetOutput(f)
 
 	log.Printf("OCI FlexVolume Driver version: %s (%s)", version, build)
-	flexvolume.ExecDriver(&driver.OCIFlexvolumeDriver{}, os.Args)
+
+	drivers := map[string]flexvolume.Driver{
+		"oci-bvs": &driver.OCIFlexvolumeDriver{},
+	}
+
+	flexvolume.ExecDriver(drivers, os.Args)
 }
