@@ -154,7 +154,7 @@ func ExecDriver(drivers map[string]Driver, args []string) DriverStatus {
 	driver := drivers[DefaultSymlinkDirectory] //Block volume is default
 
 	dir := path.Base(args[0])
-	dir = strings.TrimPrefix(dir, "oracle~")
+	dir = string(strings.TrimPrefix(dir, "oracle~"))
 
 	if dir != "oci" && dir != DefaultSymlinkDirectory {
 		driver = drivers[dir]
@@ -162,7 +162,7 @@ func ExecDriver(drivers map[string]Driver, args []string) DriverStatus {
 
 	// Moved outside the above if to catch errors in code.
 	if driver == nil {
-		Failf("No driver found for ", dir)
+		return Failf("No driver found for %s", dir)
 	}
 
 	log.Printf("Using %s driver", dir)
@@ -283,5 +283,4 @@ func ExecDriver(drivers map[string]Driver, args []string) DriverStatus {
 	default:
 		return Failf("invalid command; got ", args)
 	}
-	return Failf("Unexpected condition")
 }

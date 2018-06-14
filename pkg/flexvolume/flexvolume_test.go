@@ -72,3 +72,14 @@ func TestAttachUnsuported(t *testing.T) {
 	expected := DriverStatus{Status: "Not supported"}
 	assertFailure(t, expected, status)
 }
+
+func TestInvalidSymlink(t *testing.T) {
+	status := ExecDriver(map[string]Driver{"oci-bvs": mockFlexvolumeDriver{}},
+		[]string{"oci-abc", "init", defaultTestOps, "nodeName"})
+
+	expected := DriverStatus{
+		Status:  "Failure",
+		Message: "No driver found for oci-abc",
+	}
+	assertFailure(t, expected, status)
+}
