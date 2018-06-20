@@ -18,6 +18,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
+	"strings"
+	"sync"
 
 	"github.com/oracle/oci-flexvolume-driver/pkg/flexvolume"
 	"github.com/oracle/oci-flexvolume-driver/pkg/oci/driver"
@@ -27,6 +30,12 @@ import (
 var version string
 var build string
 
+// All registered drivers.
+var (
+	driversMutex sync.Mutex
+	drivers      = make(map[string]flexvolume.Driver)
+)
+
 // GetLogPath returns the default path to the driver log file.
 func GetLogPath() string {
 	path := os.Getenv("OCI_FLEXD_DRIVER_LOG_DIR")
@@ -34,6 +43,10 @@ func GetLogPath() string {
 		path = driver.GetDriverDirectory()
 	}
 	return path + "/oci_flexvolume_driver.log"
+}
+
+func loadRegisteredDrivers() {
+	RegisterDriver("oci-bvs", &driver.OCIFlexvolumeDriver{})
 }
 
 func main() {
@@ -51,9 +64,57 @@ func main() {
 
 	log.Printf("OCI FlexVolume Driver version: %s (%s)", version, build)
 
-	drivers := map[string]flexvolume.Driver{
-		"oci-bvs": &driver.OCIFlexvolumeDriver{},
+	loadRegisteredDrivers()
+
+	driver, err := getDriverFromArgs()
+	if err != nil {
+		log.Fatalf(err.Error())
 	}
 
-	flexvolume.ExecDriver(drivers, os.Args)
+	flexvolume.ExitWithResult(flexvolume.ExecDriver(driver, os.Args))
+}
+
+func getDriverFromArgs() (flexvolume.Driver, error) {
+	driver, err := GetRegisteredDriver(flexvolume.DefaultSymlinkDirectory) //Block volume is default
+	if err != nil {
+		return nil, err
+	}
+
+	dir := path.Base(os.Args[0])
+	dir = string(strings.TrimPrefix(dir, "oracle~"))
+
+	if dir != "oci" && dir != flexvolume.DefaultSymlinkDirectory {
+		driver, err = GetRegisteredDriver(dir)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	log.Printf("Using %s driver", dir)
+
+	return driver, nil
+}
+
+// GetRegisteredDriver returns an instance of the named driver, or nil if
+// the name is unknown. An error is thrown if the named driver is not found.
+func GetRegisteredDriver(name string) (flexvolume.Driver, error) {
+	driversMutex.Lock()
+	defer driversMutex.Unlock()
+	f, found := drivers[name]
+	if !found {
+		return nil, fmt.Errorf("No driver found for %s", name)
+	}
+	return f, nil
+}
+
+// RegisterDriver registers a flexvolume.Driver by name.  This
+// is expected to happen during app startup.
+func RegisterDriver(name string, driver flexvolume.Driver) {
+	driversMutex.Lock()
+	defer driversMutex.Unlock()
+	if _, found := drivers[name]; found {
+		log.Fatalf("Driver %q was registered twice", name)
+	}
+	log.Printf("Registered driver %q", name)
+	drivers[name] = driver
 }

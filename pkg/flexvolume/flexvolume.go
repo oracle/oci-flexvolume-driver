@@ -20,8 +20,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"path"
-	"strings"
 )
 
 // Defined to enable overriding in tests.
@@ -86,6 +84,26 @@ type Driver interface {
 	Unmount(mountDir string) DriverStatus
 }
 
+// ExitWithResult outputs the given Result and exits with the appropriate exit
+// code.
+func ExitWithResult(result DriverStatus) {
+	code := 1
+	if result.Status == StatusSuccess || result.Status == StatusNotSupported {
+		code = 0
+	}
+
+	res, err := json.Marshal(result)
+	if err != nil {
+		log.Printf("Error marshaling result: %v", err)
+		fmt.Fprintln(out, `{"status":"Failure","message":"Error marshaling result to JSON"}`)
+	} else {
+		s := string(res)
+		log.Printf("Command result: %s", s)
+		fmt.Fprintln(out, s)
+	}
+	exit(code)
+}
+
 // Fail creates a StatusFailure Result with a given message.
 func Fail(a ...interface{}) DriverStatus {
 	msg := fmt.Sprint(a...)
@@ -144,28 +162,12 @@ func processOpts(optsStr string) (Options, error) {
 
 // ExecDriver executes the appropriate FlexvolumeDriver command based on
 // recieved call-out.
-func ExecDriver(drivers map[string]Driver, args []string) DriverStatus {
+func ExecDriver(driver Driver, args []string) DriverStatus {
 	if len(args) < 2 {
 		return Failf("Expected at least one argument")
 	}
 
 	log.Printf("'%s %s' called with %s", args[0], args[1], args[2:])
-
-	driver := drivers[DefaultSymlinkDirectory] //Block volume is default
-
-	dir := path.Base(args[0])
-	dir = string(strings.TrimPrefix(dir, "oracle~"))
-
-	if dir != "oci" && dir != DefaultSymlinkDirectory {
-		driver = drivers[dir]
-	}
-
-	// Moved outside the above if to catch errors in code.
-	if driver == nil {
-		return Failf("No driver found for %s", dir)
-	}
-
-	log.Printf("Using %s driver", dir)
 
 	switch args[1] {
 	// <driver executable> init

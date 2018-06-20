@@ -34,7 +34,8 @@ func assertFailure(t *testing.T, expected DriverStatus, status DriverStatus) {
 }
 
 func TestInit(t *testing.T) {
-	status := ExecDriver(map[string]Driver{"oci-bvs": mockFlexvolumeDriver{}},
+	status := ExecDriver(
+		mockFlexvolumeDriver{},
 		[]string{"oci", "init"})
 
 	expected := DriverStatus{Status: "Success"}
@@ -46,8 +47,10 @@ func TestInit(t *testing.T) {
 // StatusNotSupported as the call-out is broken as of the latest stable Kube
 // release (1.6.4).
 func TestGetVolumeName(t *testing.T) {
-	status := ExecDriver(map[string]Driver{"oci-bvs": mockFlexvolumeDriver{}},
-		[]string{"oci", "getvolumename", defaultTestOps})
+	status := ExecDriver(
+		mockFlexvolumeDriver{},
+		[]string{"oci", "getvolumename", defaultTestOps},
+	)
 
 	expected := DriverStatus{Status: "Not supported", Message: "getvolumename is broken as of kube 1.6.4"}
 
@@ -55,7 +58,8 @@ func TestGetVolumeName(t *testing.T) {
 }
 
 func TestNoVolumeIDDispatch(t *testing.T) {
-	status := ExecDriver(map[string]Driver{"oci-bvs": mockFlexvolumeDriver{}},
+	status := ExecDriver(
+		mockFlexvolumeDriver{},
 		[]string{"oci", "attach", noVolIDTestOps, "nodeName"})
 
 	expected := DriverStatus{
@@ -65,20 +69,10 @@ func TestNoVolumeIDDispatch(t *testing.T) {
 }
 
 func TestAttachUnsuported(t *testing.T) {
-	status := ExecDriver(map[string]Driver{"oci-bvs": mockFlexvolumeDriver{}},
+	status := ExecDriver(
+		mockFlexvolumeDriver{},
 		[]string{"oci", "attach", defaultTestOps, "nodeName"})
 
 	expected := DriverStatus{Status: "Not supported"}
-	assertFailure(t, expected, status)
-}
-
-func TestInvalidSymlink(t *testing.T) {
-	status := ExecDriver(map[string]Driver{"oci-bvs": mockFlexvolumeDriver{}},
-		[]string{"oci-abc", "init", defaultTestOps, "nodeName"})
-
-	expected := DriverStatus{
-		Status:  "Failure",
-		Message: "No driver found for oci-abc",
-	}
 	assertFailure(t, expected, status)
 }
