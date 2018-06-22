@@ -18,12 +18,12 @@ import (
 	"testing"
 
 	"github.com/oracle/oci-flexvolume-driver/pkg/flexvolume"
-	"github.com/oracle/oci-flexvolume-driver/pkg/oci/block"
+	"github.com/oracle/oci-flexvolume-driver/pkg/oci/filestorage"
 )
 
-// TestAttachNonexistentVolume tests that attach fails for invalid volume OCIDs.
-func TestAttachNonexistentVolume(t *testing.T) {
-	d := &block.OCIFlexvolumeDriver{}
+// TestAttachNonexistentFileSystemStorage tests that attach fails for invalid file system OCIDs.
+func TestAttachNonexistentFileSystemStorage(t *testing.T) {
+	d := &filestorage.OCIFilestorageDriver{}
 	opts := flexvolume.Options{
 		"kubernetes.io/fsType":         "ext4",
 		"kubernetes.io/pvOrVolumeName": "non-existent-volume",

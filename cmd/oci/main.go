@@ -20,7 +20,8 @@ import (
 	"os"
 
 	"github.com/oracle/oci-flexvolume-driver/pkg/flexvolume"
-	"github.com/oracle/oci-flexvolume-driver/pkg/oci/driver"
+	"github.com/oracle/oci-flexvolume-driver/pkg/oci/block"
+	"github.com/oracle/oci-flexvolume-driver/pkg/oci/common"
 )
 
 // version/build is set at build time to the version of the driver being built.
@@ -31,7 +32,7 @@ var build string
 func GetLogPath() string {
 	path := os.Getenv("OCI_FLEXD_DRIVER_LOG_DIR")
 	if path == "" {
-		path = driver.GetDriverDirectory()
+		path = common.GetDriverDirectory()
 	}
 	return path + "/oci_flexvolume_driver.log"
 }
@@ -50,5 +51,5 @@ func main() {
 	log.SetOutput(f)
 
 	log.Printf("OCI FlexVolume Driver version: %s (%s)", version, build)
-	flexvolume.ExecDriver(&driver.OCIFlexvolumeDriver{}, os.Args)
+	flexvolume.ExecDriver(&block.OCIFlexvolumeDriver{}, os.Args)
 }
