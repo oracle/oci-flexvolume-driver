@@ -15,74 +15,64 @@
 package flexvolume
 
 import (
-	"bytes"
 	"testing"
 )
 
-const defaultTestOps = `{"kubernetes.io/fsType":"ext4","kubernetes.io/readwrite":"rw"}`
+const defaultTestOps = `{"kubernetes.io/fsType":"ext4","kubernetes.io/readwrite":"rw","kubernetes.io/pvOrVolumeName":"mockvolumeid"}`
+const noVolIDTestOps = `{"kubernetes.io/fsType":"ext4","kubernetes.io/readwrite":"rw"}`
+
+func assertSuccess(t *testing.T, expected DriverStatus, status DriverStatus) {
+	if status != expected {
+		t.Fatalf(`Expected '%#v' got '%#v'`, expected, status)
+	}
+}
+
+func assertFailure(t *testing.T, expected DriverStatus, status DriverStatus) {
+	if status != expected {
+		t.Fatalf(`Expected '%#v' got '%#v'`, expected, status)
+	}
+}
 
 func TestInit(t *testing.T) {
-	bak := out
-	out = new(bytes.Buffer)
-	defer func() { out = bak }()
+	status := ExecDriver(
+		mockFlexvolumeDriver{},
+		[]string{"oci", "init"})
 
-	code := 0
-	osexit := exit
-	exit = func(c int) { code = c }
-	defer func() { exit = osexit }()
+	expected := DriverStatus{Status: "Success"}
 
-	ExecDriver(mockFlexvolumeDriver{}, []string{"oci", "init"})
-
-	if out.(*bytes.Buffer).String() != `{"status":"Success"}`+"\n" {
-		t.Fatalf(`Expected '{"status":"Success"}'; got %s`, out.(*bytes.Buffer).String())
-	}
-
-	if code != 0 {
-		t.Fatalf("Expected 'exit 0'; got 'exit %d'", code)
-	}
+	assertSuccess(t, expected, status)
 }
 
 // TestVolumeName tests that the getvolumename call-out results in
 // StatusNotSupported as the call-out is broken as of the latest stable Kube
 // release (1.6.4).
 func TestGetVolumeName(t *testing.T) {
-	bak := out
-	out = new(bytes.Buffer)
-	defer func() { out = bak }()
+	status := ExecDriver(
+		mockFlexvolumeDriver{},
+		[]string{"oci", "getvolumename", defaultTestOps},
+	)
 
-	code := 0
-	osexit := exit
-	exit = func(c int) { code = c }
-	defer func() { exit = osexit }()
+	expected := DriverStatus{Status: "Not supported", Message: "getvolumename is broken as of kube 1.6.4"}
 
-	ExecDriver(mockFlexvolumeDriver{}, []string{"oci", "getvolumename", defaultTestOps})
+	assertFailure(t, expected, status)
+}
 
-	if out.(*bytes.Buffer).String() != `{"status":"Not supported","message":"getvolumename is broken as of kube 1.6.4"}`+"\n" {
-		t.Fatalf(`Expected '{"status":"Not supported","message":"getvolumename is broken as of kube 1.6.4"}}'; got %s`, out.(*bytes.Buffer).String())
+func TestNoVolumeIDDispatch(t *testing.T) {
+	status := ExecDriver(
+		mockFlexvolumeDriver{},
+		[]string{"oci", "attach", noVolIDTestOps, "nodeName"})
+
+	expected := DriverStatus{
+		Status: "Not supported",
 	}
-
-	if code != 0 {
-		t.Fatalf("Expected 'exit 0'; got 'exit %d'", code)
-	}
+	assertFailure(t, expected, status)
 }
 
 func TestAttachUnsuported(t *testing.T) {
-	bak := out
-	out = new(bytes.Buffer)
-	defer func() { out = bak }()
+	status := ExecDriver(
+		mockFlexvolumeDriver{},
+		[]string{"oci", "attach", defaultTestOps, "nodeName"})
 
-	code := 0
-	osexit := exit
-	exit = func(c int) { code = c }
-	defer func() { exit = osexit }()
-
-	ExecDriver(mockFlexvolumeDriver{}, []string{"oci", "attach", defaultTestOps, "nodeName"})
-
-	if out.(*bytes.Buffer).String() != `{"status":"Not supported"}`+"\n" {
-		t.Fatalf(`Expected '{"status":"Not supported""}'; got %s`, out.(*bytes.Buffer).String())
-	}
-
-	if code != 0 {
-		t.Fatalf("Expected 'exit 0'; got 'exit %d'", code)
-	}
+	expected := DriverStatus{Status: "Not supported"}
+	assertFailure(t, expected, status)
 }
