@@ -3,9 +3,12 @@ apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: oci-flexvolume-driver-system-test-{{TEST_ID}}
 rules:
-  - apiGroups: ["*"]
-    resources: ["*"]
-    verbs: ["*"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/logs"]
+    verbs: ["get", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["replicationcontrollers"]
+    verbs: ["create", "delete"]
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
