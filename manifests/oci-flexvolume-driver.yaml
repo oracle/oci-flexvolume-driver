@@ -11,7 +11,7 @@ spec:
         app: oci-flexvolume-driver
     spec:
       nodeSelector:
-        node-role.kubernetes.io/master: "true"
+        node-role.kubernetes.io/master: ""
       tolerations:
       - key: node.cloudprovider.kubernetes.io/uninitialized
         value: "true"
@@ -20,7 +20,7 @@ spec:
         operator: Exists
         effect: NoSchedule
       containers:
-        - image: iad.ocir.io/__DOCKER_REGISTRY_USERNAME__/oci-flexvolume-driver:__VERSION__
+        - image: iad.ocir.io/__DOCKER_REGISTRY_TENANCY__/oci-flexvolume-driver:__VERSION__
           imagePullPolicy: Always
           name: oci-flexvolume-driver
           securityContext:
@@ -53,7 +53,7 @@ spec:
         app: oci-flexvolume-driver
     spec:
       containers:
-        - image: iad.ocir.io/__DOCKER_REGISTRY_USERNAME__/oci-flexvolume-driver:__VERSION__
+        - image: iad.ocir.io/__DOCKER_REGISTRY_TENANCY__/oci-flexvolume-driver:__VERSION__
           imagePullPolicy: Always
           name: oci-flexvolume-driver
           securityContext:

@@ -78,8 +78,10 @@ func NewConfig(r io.Reader) (*Config, error) {
 
 	c.metadata = instancemeta.New()
 
-	if err := c.setDefaults(); err != nil {
-		return nil, err
+	if !c.UseInstancePrincipals {
+		if err := c.setDefaults(); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := c.validate(); err != nil {
@@ -167,6 +169,9 @@ func validateAuthConfig(c *Config, fldPath *field.Path) field.ErrorList {
 	if c.UseInstancePrincipals {
 		if c.Auth.Region != "" {
 			errList = append(errList, field.Forbidden(fldPath.Child("region"), "cannot be used when useInstancePrincipals is enabled"))
+		}
+		if c.Auth.CompartmentOCID != "" {
+			errList = append(errList, field.Forbidden(fldPath.Child("compartment"), "cannot be used when useInstancePrincipals is enabled"))
 		}
 		if c.Auth.TenancyOCID != "" {
 			errList = append(errList, field.Forbidden(fldPath.Child("tenancy"), "cannot be used when useInstancePrincipals is enabled"))
