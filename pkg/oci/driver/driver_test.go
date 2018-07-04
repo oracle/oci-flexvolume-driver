@@ -31,7 +31,7 @@ var volumeOCIDTests = []struct {
 
 func TestDeriveVolumeOCID(t *testing.T) {
 	for _, tt := range volumeOCIDTests {
-		result := deriveVolumeOCID(tt.regionKey, tt.volumeName)
+		result := DeriveVolumeOCID(tt.regionKey, tt.volumeName)
 		if result != tt.expected {
 			t.Errorf("Failed to derive OCID. Expected %s got %s", tt.expected, result)
 		}
