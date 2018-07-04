@@ -18,8 +18,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path"
-	"strings"
 
 	"github.com/oracle/oci-flexvolume-driver/pkg/flexvolume"
 	"github.com/oracle/oci-flexvolume-driver/pkg/oci/driver"
@@ -29,13 +27,6 @@ import (
 var version string
 var build string
 
-// DefaultDriver is the default flexvolume driver symlink extension.
-const DefaultDriver string = "oci-bvs"
-
-var (
-	drivers = make(map[string]flexvolume.Driver)
-)
-
 // GetLogPath returns the default path to the driver log file.
 func GetLogPath() string {
 	path := os.Getenv("OCI_FLEXD_DRIVER_LOG_DIR")
@@ -43,10 +34,6 @@ func GetLogPath() string {
 		path = driver.GetDriverDirectory()
 	}
 	return path + "/oci_flexvolume_driver.log"
-}
-
-func registerDrivers() {
-	registerDriver("oci-bvs", &driver.OCIFlexvolumeDriver{})
 }
 
 func main() {
@@ -64,52 +51,10 @@ func main() {
 
 	log.Printf("OCI FlexVolume Driver version: %s (%s)", version, build)
 
-	registerDrivers()
-
-	driver, err := getDriverFromArgs()
+	driver, err := driver.GetDriver(driver.GetDriverName(os.Args))
 	if err != nil {
-		log.Fatalf(err.Error())
+		fmt.Fprintf(os.Stderr, "error loading driver: %v", err)
 	}
 
 	flexvolume.ExitWithResult(flexvolume.ExecDriver(driver, os.Args))
-}
-
-func getDriverFromArgs() (flexvolume.Driver, error) {
-	driver, err := getDriver(DefaultDriver) //Block volume is default
-	if err != nil {
-		return nil, err
-	}
-
-	if len(os.Args) == 0 {
-		log.Printf("No arguments found, using default driver %s", DefaultDriver)
-		return driver, nil
-	}
-
-	dir := path.Base(os.Args[0])
-	dir = strings.TrimPrefix(dir, "oracle~")
-
-	if dir != "oci" && dir != DefaultDriver {
-		driver, err = getDriver(dir)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	log.Printf("Using %s driver", dir)
-
-	return driver, nil
-}
-
-func registerDriver(name string, driver flexvolume.Driver) {
-	if drivers[name] == nil {
-		drivers[name] = driver
-	}
-}
-
-func getDriver(name string) (flexvolume.Driver, error) {
-	driver, ok := drivers[name]
-	if !ok {
-		return nil, fmt.Errorf("could not find a registered driver for %s", name)
-	}
-	return driver, nil
 }

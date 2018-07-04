@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -35,8 +36,49 @@ const (
 	ocidPrefix           = "ocid1."
 )
 
+// DefaultDriver is the default flexvolume driver symlink extension.
+const DefaultDriver string = "oci-bvs"
+
+var (
+	drivers = make(map[string]flexvolume.Driver)
+)
+
 // OCIFlexvolumeDriver implements the flexvolume.Driver interface for OCI.
 type OCIFlexvolumeDriver struct{}
+
+func init() {
+	registerDriver("oci-bvs", &OCIFlexvolumeDriver{})
+}
+
+// RegisterDriver adds a driver to the drivers map.
+func registerDriver(name string, driver flexvolume.Driver) {
+	driver, ok := drivers[name]
+	if !ok {
+		drivers[name] = driver
+	}
+}
+
+// GetDriver returns a driver from the map associated with a given key.
+func GetDriver(name string) (flexvolume.Driver, error) {
+	driver, ok := drivers[name]
+	if !ok {
+		return nil, fmt.Errorf("could not find a registered driver for %s", name)
+	}
+	return driver, nil
+}
+
+// GetDriverName returns the name (map key) of the driver from a given path.
+func GetDriverName(args []string) string {
+	if len(args) == 0 {
+		return DefaultDriver
+	}
+
+	driverName := strings.TrimPrefix(path.Base(os.Args[0]), "oracle~")
+	if driverName == "oci" {
+		return DefaultDriver
+	}
+	return driverName
+}
 
 // GetDriverDirectory gets the ath for the flexvolume driver either from the
 // env or default.
@@ -62,14 +104,15 @@ func GetConfigPath() string {
 // Init checks that we have the appropriate credentials and metadata API access
 // on driver initialisation.
 func (d OCIFlexvolumeDriver) Init() flexvolume.DriverStatus {
-	path := GetConfigPath()
-	if _, err := os.Stat(path); !os.IsNotExist(err) {
-		_, err = client.New(path)
+	configPath := GetConfigPath()
+
+	if _, err := os.Stat(configPath); !os.IsNotExist(err) {
+		_, err = client.New(configPath)
 		if err != nil {
 			return flexvolume.Fail(err)
 		}
 	} else {
-		log.Printf("Config file %q does not exist. Assuming worker node.", path)
+		log.Printf("Config file %q does not exist. Assuming worker node.", configPath)
 	}
 
 	return flexvolume.Succeed()
