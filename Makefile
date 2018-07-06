@@ -76,7 +76,7 @@ build:
 manifests: build
 	@cp -a manifests/* dist
 	@sed ${SED_INPLACE} 's#__VERSION__#${VERSION}#g' dist/oci-flexvolume-driver.yaml
-	@sed ${SED_INPLACE} 's#__DOCKER_REGISTRY_USERNAME__#${DOCKER_REGISTRY_USERNAME}#g' dist/oci-flexvolume-driver.yaml
+	@sed ${SED_INPLACE} 's#__DOCKER_REGISTRY_TENANCY__#${DOCKER_REGISTRY_TENANCY}#g' dist/oci-flexvolume-driver.yaml
 
 .PHONY: build-integration-tests
 build-integration-tests:
