@@ -165,9 +165,6 @@ func validateAuthConfig(c *Config, fldPath *field.Path) field.ErrorList {
 	errList := field.ErrorList{}
 
 	if c.UseInstancePrincipals {
-		if c.Auth.Region != "" {
-			errList = append(errList, field.Forbidden(fldPath.Child("region"), "cannot be used when useInstancePrincipals is enabled"))
-		}
 		if c.Auth.TenancyOCID != "" {
 			errList = append(errList, field.Forbidden(fldPath.Child("tenancy"), "cannot be used when useInstancePrincipals is enabled"))
 		}
