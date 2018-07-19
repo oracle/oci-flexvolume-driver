@@ -11,7 +11,7 @@ spec:
         app: oci-flexvolume-driver
     spec:
       nodeSelector:
-        node-role.kubernetes.io/master: "true"
+        node-role.kubernetes.io/master: ""
       tolerations:
       - key: node.cloudprovider.kubernetes.io/uninitialized
         value: "true"
