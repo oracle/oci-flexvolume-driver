@@ -80,19 +80,18 @@ To authenticate using [instance principals][9] the following policies must first
 applied to the dynamic group of instances that intend to use the flexvolume driver:
 
 ```
-"Allow group id ${oci_identity_group.flexvolume_driver_group.id} to read vnic-attachments in compartment id ${var.compartment_ocid}",
-"Allow group id ${oci_identity_group.flexvolume_driver_group.id} to read vnics in compartment id ${var.compartment_ocid}",
-"Allow group id ${oci_identity_group.flexvolume_driver_group.id} to read instances in compartment id ${var.compartment_ocid}",
-"Allow group id ${oci_identity_group.flexvolume_driver_group.id} to read subnets in compartment id ${var.compartment_ocid}",
-"Allow group id ${oci_identity_group.flexvolume_driver_group.id} to use volumes in compartment id ${var.compartment_ocid}",
-"Allow group id ${oci_identity_group.flexvolume_driver_group.id} to use instances in compartment id ${var.compartment_ocid}",
-"Allow group id ${oci_identity_group.flexvolume_driver_group.id} to manage volume-attachments in compartment id ${var.compartment_ocid}",
+"Allow dynamic-group ${oci_identity_group.flexvolume_driver_group.name} to read vnic-attachments in compartment id ${var.compartment_ocid}",
+"Allow dynamic-group ${oci_identity_group.flexvolume_driver_group.name} to read vnics in compartment id ${var.compartment_ocid}",
+"Allow dynamic-group ${oci_identity_group.flexvolume_driver_group.name} to read instances in compartment id ${var.compartment_ocid}",
+"Allow dynamic-group ${oci_identity_group.flexvolume_driver_group.name} to read subnets in compartment id ${var.compartment_ocid}",
+"Allow dynamic-group ${oci_identity_group.flexvolume_driver_group.name} to use volumes in compartment id ${var.compartment_ocid}",
+"Allow dynamic-group ${oci_identity_group.flexvolume_driver_group.name} to use instances in compartment id ${var.compartment_ocid}",
+"Allow dynamic-group ${oci_identity_group.flexvolume_driver_group.name} to manage volume-attachments in compartment id ${var.compartment_ocid}",
 ```
 
 The configuration file requires a simple configuration in the following format:
 
 ```yaml
----
 useInstancePrincipals: true
 ```
 
