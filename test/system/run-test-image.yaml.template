@@ -4,7 +4,7 @@ metadata:
   name: oci-flexvolume-driver-system-test-{{TEST_ID}}
 rules:
   - apiGroups: [""]
-    resources: ["pods", "pods/logs", "persistentvolumeclaims"]
+    resources: ["pods", "pods/logs", "persistentvolumeclaims", "pods/exec"]
     verbs: ["get", "create", "delete", "list"]
   - apiGroups: [""]
     resources: ["replicationcontrollers"]
