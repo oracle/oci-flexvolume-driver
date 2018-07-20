@@ -5,7 +5,7 @@ metadata:
 rules:
   - apiGroups: [""]
     resources: ["pods", "pods/logs", "persistentvolumeclaims"]
-    verbs: ["get", "create", "delete"]
+    verbs: ["get", "create", "delete", "list"]
   - apiGroups: [""]
     resources: ["replicationcontrollers"]
     verbs: ["create", "delete"]
