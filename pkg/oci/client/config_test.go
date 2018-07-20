@@ -169,22 +169,6 @@ func TestValidateConfig(t *testing.T) {
 				&field.Error{Type: field.ErrorTypeRequired, Field: "auth.tenancy", BadValue: ""},
 			},
 		}, {
-			name: "missing_compartment_ocid",
-			in: &Config{
-				Auth: AuthConfig{
-					Region:      "us-phoenix-1",
-					RegionKey:   "phx",
-					TenancyOCID: "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					UserOCID:    "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					PrivateKey:  "-----BEGIN RSA PRIVATE KEY----- (etc)",
-					Fingerprint: "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
-					VcnOCID:     "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-				},
-			},
-			errs: field.ErrorList{
-				&field.Error{Type: field.ErrorTypeRequired, Field: "auth.compartment", BadValue: ""},
-			},
-		}, {
 			name: "missing_user_ocid",
 			in: &Config{
 				Auth: AuthConfig{
@@ -217,7 +201,7 @@ func TestValidateConfig(t *testing.T) {
 				&field.Error{Type: field.ErrorTypeRequired, Field: "auth.key", BadValue: ""},
 			},
 		}, {
-			name: "missing_figerprint",
+			name: "missing_fingerprint",
 			in: &Config{
 				Auth: AuthConfig{
 					Region:          "us-phoenix-1",
