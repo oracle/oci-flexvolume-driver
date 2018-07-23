@@ -217,7 +217,7 @@ func TestValidateConfig(t *testing.T) {
 				&field.Error{Type: field.ErrorTypeRequired, Field: "auth.key", BadValue: ""},
 			},
 		}, {
-			name: "missing_figerprint",
+			name: "missing_fingerprint",
 			in: &Config{
 				Auth: AuthConfig{
 					Region:      "us-phoenix-1",

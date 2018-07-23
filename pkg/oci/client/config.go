@@ -47,7 +47,7 @@ type AuthConfig struct {
 	UserOCID             string `yaml:"user"`
 	PrivateKey           string `yaml:"key"`
 	Passphrase           string `yaml:"passphrase"`
-	PrivateKeyPassphrase string `yaml:"key_passphase"` // DEPRECIATED
+	PrivateKeyPassphrase string `yaml:"key_passphase"` // DEPRECATED
 	Fingerprint          string `yaml:"fingerprint"`
 	// VcnOCID is DEPRECATED under AuthConfig and will be removed in a later release
 	VcnOCID string `yaml:"vcn"`
@@ -81,8 +81,10 @@ func NewConfig(r io.Reader) (*Config, error) {
 
 	c.metadata = instancemeta.New()
 
-	if err := c.setDefaults(); err != nil {
-		return nil, err
+	if !c.UseInstancePrincipals {
+		if err := c.setDefaults(); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := c.validate(); err != nil {
@@ -181,6 +183,9 @@ func validateAuthConfig(c *Config) field.ErrorList {
 	if c.UseInstancePrincipals {
 		if c.Auth.Region != "" {
 			errList = append(errList, field.Forbidden(authPath.Child("region"), "cannot be used when useInstancePrincipals is enabled"))
+		}
+		if c.Auth.CompartmentOCID != "" {
+			errList = append(errList, field.Forbidden(fldPath.Child("compartment"), "cannot be used when useInstancePrincipals is enabled"))
 		}
 		if c.Auth.TenancyOCID != "" {
 			errList = append(errList, field.Forbidden(authPath.Child("tenancy"), "cannot be used when useInstancePrincipals is enabled"))
