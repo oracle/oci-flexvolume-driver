@@ -39,24 +39,27 @@ var ociRegions = map[string]string{
 // AuthConfig holds the configuration required for communicating with the OCI
 // API.
 type AuthConfig struct {
-	Region               string `yaml:"region"`
-	RegionKey            string `yaml:"regionKey"`
-	TenancyOCID          string `yaml:"tenancy"`
-	CompartmentOCID      string `yaml:"compartment"` // DEPRECATED (we no longer directly use this)
+	Region      string `yaml:"region"`
+	RegionKey   string `yaml:"regionKey"`
+	TenancyOCID string `yaml:"tenancy"`
+	// CompartmentOCID is DEPRECATED under AuthConfig and will be removed in a later release
+	CompartmentOCID      string `yaml:"compartment"`
 	UserOCID             string `yaml:"user"`
 	PrivateKey           string `yaml:"key"`
 	Passphrase           string `yaml:"passphrase"`
 	PrivateKeyPassphrase string `yaml:"key_passphase"` // DEPRECATED
 	Fingerprint          string `yaml:"fingerprint"`
-	VcnOCID              string `yaml:"vcn"`
+	// VcnOCID is DEPRECATED under AuthConfig and will be removed in a later release
+	VcnOCID string `yaml:"vcn"`
 }
 
 // Config holds the configuration for the OCI flexvolume driver.
 type Config struct {
-	Auth AuthConfig `yaml:"auth"`
-
+	Auth                  AuthConfig `yaml:"auth"`
+	CompartmentOCID       string     `yaml:"compartment"`
+	VcnOCID               string     `yaml:"vcn"`
+	UseInstancePrincipals bool       `yaml:"useInstancePrincipals"`
 	metadata              instancemeta.Interface
-	UseInstancePrincipals bool `yaml:"useInstancePrincipals"`
 }
 
 // NewConfig creates a new Config based on the contents of the given io.Reader.
@@ -103,7 +106,7 @@ func ConfigFromFile(path string) (*Config, error) {
 }
 
 func (c *Config) setDefaults() error {
-	if c.Auth.Region == "" || c.Auth.CompartmentOCID == "" {
+	if c.Auth.Region == "" || c.CompartmentOCID == "" {
 		meta, err := c.metadata.Get()
 		if err != nil {
 			return err
@@ -112,8 +115,8 @@ func (c *Config) setDefaults() error {
 		if c.Auth.Region == "" {
 			c.Auth.Region = meta.Region
 		}
-		if c.Auth.CompartmentOCID == "" {
-			c.Auth.CompartmentOCID = meta.CompartmentOCID
+		if c.CompartmentOCID == "" {
+			c.CompartmentOCID = meta.CompartmentOCID
 		}
 	}
 
@@ -123,8 +126,18 @@ func (c *Config) setDefaults() error {
 	}
 
 	if c.Auth.Passphrase == "" && c.Auth.PrivateKeyPassphrase != "" {
-		log.Print("config: auth.key_passphrase is DEPRECIATED and will be removed in a later release. Please set auth.passphrase instead.")
+		log.Print("config: auth.key_passphrase is DEPRECATED and will be removed in a later release. Please set auth.passphrase instead.")
 		c.Auth.Passphrase = c.Auth.PrivateKeyPassphrase
+	}
+
+	if c.CompartmentOCID == "" && c.Auth.CompartmentOCID != "" {
+		log.Print("cloud-provider config: \"auth.compartment\" is DEPRECATED and will be removed in a later release. Please set \"compartment\".")
+		c.CompartmentOCID = c.Auth.CompartmentOCID
+	}
+
+	if c.VcnOCID == "" && c.Auth.VcnOCID != "" {
+		log.Print("cloud-provider config: \"auth.vcn\" is DEPRECATED and will be removed in a later release. Please set \"vcn\".")
+		c.VcnOCID = c.Auth.VcnOCID
 	}
 
 	return nil
@@ -163,52 +176,56 @@ func (c *Config) validate() error {
 	return ValidateConfig(c).ToAggregate()
 }
 
-func validateAuthConfig(c *Config, fldPath *field.Path) field.ErrorList {
+func validateAuthConfig(c *Config) field.ErrorList {
 	errList := field.ErrorList{}
+	authPath := field.NewPath("auth")
 
 	if c.UseInstancePrincipals {
 		if c.Auth.Region != "" {
-			errList = append(errList, field.Forbidden(fldPath.Child("region"), "cannot be used when useInstancePrincipals is enabled"))
+			errList = append(errList, field.Forbidden(authPath.Child("region"), "cannot be used when useInstancePrincipals is enabled"))
 		}
 		if c.Auth.CompartmentOCID != "" {
 			errList = append(errList, field.Forbidden(fldPath.Child("compartment"), "cannot be used when useInstancePrincipals is enabled"))
 		}
 		if c.Auth.TenancyOCID != "" {
-			errList = append(errList, field.Forbidden(fldPath.Child("tenancy"), "cannot be used when useInstancePrincipals is enabled"))
+			errList = append(errList, field.Forbidden(authPath.Child("tenancy"), "cannot be used when useInstancePrincipals is enabled"))
 		}
 		if c.Auth.UserOCID != "" {
-			errList = append(errList, field.Forbidden(fldPath.Child("user"), "cannot be used when useInstancePrincipals is enabled"))
+			errList = append(errList, field.Forbidden(authPath.Child("user"), "cannot be used when useInstancePrincipals is enabled"))
 		}
 		if c.Auth.PrivateKey != "" {
-			errList = append(errList, field.Forbidden(fldPath.Child("key"), "cannot be used when useInstancePrincipals is enabled"))
+			errList = append(errList, field.Forbidden(authPath.Child("key"), "cannot be used when useInstancePrincipals is enabled"))
 		}
 		if c.Auth.Fingerprint != "" {
-			errList = append(errList, field.Forbidden(fldPath.Child("fingerprint"), "cannot be used when useInstancePrincipals is enabled"))
+			errList = append(errList, field.Forbidden(authPath.Child("fingerprint"), "cannot be used when useInstancePrincipals is enabled"))
 		}
 	} else {
 		if c.Auth.Region == "" {
-			errList = append(errList, field.Required(fldPath.Child("region"), ""))
+			errList = append(errList, field.Required(authPath.Child("region"), ""))
 		}
 		if c.Auth.TenancyOCID == "" {
-			errList = append(errList, field.Required(fldPath.Child("tenancy"), ""))
+			errList = append(errList, field.Required(authPath.Child("tenancy"), ""))
+		}
+		if c.CompartmentOCID == "" {
+			errList = append(errList, field.Required(field.NewPath("compartment"), ""))
 		}
 		if c.Auth.UserOCID == "" {
-			errList = append(errList, field.Required(fldPath.Child("user"), ""))
+			errList = append(errList, field.Required(authPath.Child("user"), ""))
 		}
 		if c.Auth.PrivateKey == "" {
-			errList = append(errList, field.Required(fldPath.Child("key"), ""))
+			errList = append(errList, field.Required(authPath.Child("key"), ""))
 		}
 		if c.Auth.Fingerprint == "" {
-			errList = append(errList, field.Required(fldPath.Child("fingerprint"), ""))
+			errList = append(errList, field.Required(authPath.Child("fingerprint"), ""))
 		}
 	}
 
 	if c.Auth.RegionKey == "" {
-		errList = append(errList, field.Required(fldPath.Child("region_key"), ""))
+		errList = append(errList, field.Required(authPath.Child("region_key"), ""))
 	}
 
-	if c.Auth.VcnOCID == "" {
-		errList = append(errList, field.Required(fldPath.Child("vcn"), ""))
+	if c.VcnOCID == "" {
+		errList = append(errList, field.Required(field.NewPath("vcn"), ""))
 	}
 
 	return errList
@@ -217,6 +234,6 @@ func validateAuthConfig(c *Config, fldPath *field.Path) field.ErrorList {
 // ValidateConfig validates the OCI Flexible Volume Provisioner config file.
 func ValidateConfig(c *Config) field.ErrorList {
 	allErrs := field.ErrorList{}
-	allErrs = append(allErrs, validateAuthConfig(c, field.NewPath("auth"))...)
+	allErrs = append(allErrs, validateAuthConfig(c)...)
 	return allErrs
 }

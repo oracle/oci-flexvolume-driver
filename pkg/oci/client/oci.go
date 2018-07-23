@@ -171,7 +171,7 @@ func (c *client) FindVolumeAttachment(volumeId string) (core.VolumeAttachment, e
 
 	for {
 		request := core.ListVolumeAttachmentsRequest{
-			CompartmentId: vcnCompartment,
+			CompartmentId: &c.config.CompartmentOCID,
 			Page:          page,
 			VolumeId:      &volumeId,
 		}
@@ -219,8 +219,8 @@ func (c *client) getAllSubnetsForVCN(vcnCompartment *string) (*[]core.Subnet, er
 
 	for {
 		request := core.ListSubnetsRequest{
-			CompartmentId: vcnCompartment,
-			VcnId:         &c.config.Auth.VcnOCID,
+			CompartmentId: &c.config.CompartmentOCID,
+			VcnId:         &c.config.VcnOCID,
 			Page:          page,
 		}
 		r, err := func() (core.ListSubnetsResponse, error) {
@@ -261,18 +261,18 @@ func (c *client) isVnicAttachmentInSubnets(vnicAttachment *core.VnicAttachment, 
 func (c *client) findInstanceByNodeNameIsVNIC(cache *cache.OCICache, nodeName string, compartment *string) (*core.Instance, error) {
 	subnets, err := c.getAllSubnetsForVCN(compartment)
 	if err != nil {
-		log.Printf("Error getting subnets for VCN: %s", c.config.Auth.VcnOCID)
+		log.Printf("Error getting subnets for VCN: %s", c.config.VcnOCID)
 		return nil, err
 	}
 	if len(*subnets) == 0 {
-		return nil, fmt.Errorf("no subnets defined for VCN: %s", c.config.Auth.VcnOCID)
+		return nil, fmt.Errorf("no subnets defined for VCN: %s", c.config.VcnOCID)
 	}
 
 	var running []core.Instance
 	var page *string
 	for {
 		vnicAttachmentsRequest := core.ListVnicAttachmentsRequest{
-			CompartmentId: compartment,
+			CompartmentId: &c.config.CompartmentOCID,
 			Page:          page,
 		}
 		vnicAttachments, err := func() (core.ListVnicAttachmentsResponse, error) {
@@ -344,7 +344,7 @@ func (c *client) findInstanceByNodeNameIsDisplayName(nodeName string, compartmen
 	var page *string
 	for {
 		listInstancesRequest := core.ListInstancesRequest{
-			CompartmentId: compartment,
+			CompartmentId: &c.config.CompartmentOCID,
 			DisplayName:   &nodeName,
 			Page:          page,
 		}

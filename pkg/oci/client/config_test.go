@@ -47,7 +47,7 @@ func TestConfigDefaulting(t *testing.T) {
 		t.Fatalf("Expected cfg.RegionKey = %q, got %q", cfg.Auth.RegionKey, expectedRegionKey)
 	}
 
-	if cfg.Auth.CompartmentOCID != expectedCompartmentOCID {
+	if cfg.CompartmentOCID != expectedCompartmentOCID {
 		t.Fatalf("Expected cfg.CompartmentOCID = %q, got %q", cfg.Auth.CompartmentOCID, expectedCompartmentOCID)
 	}
 }
@@ -109,29 +109,29 @@ func TestValidateConfig(t *testing.T) {
 			name: "valid",
 			in: &Config{
 				Auth: AuthConfig{
-					Region:          "us-phoenix-1",
-					RegionKey:       "phx",
-					CompartmentOCID: "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					TenancyOCID:     "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					UserOCID:        "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					PrivateKey:      "-----BEGIN RSA PRIVATE KEY----- (etc)",
-					Fingerprint:     "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
-					VcnOCID:         "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					Region:      "us-phoenix-1",
+					RegionKey:   "phx",
+					TenancyOCID: "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					UserOCID:    "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					PrivateKey:  "-----BEGIN RSA PRIVATE KEY----- (etc)",
+					Fingerprint: "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
 				},
+				CompartmentOCID: "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+				VcnOCID:         "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 			},
 			errs: field.ErrorList{},
 		}, {
 			name: "missing_region",
 			in: &Config{
 				Auth: AuthConfig{
-					RegionKey:       "phx",
-					CompartmentOCID: "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					TenancyOCID:     "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					UserOCID:        "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					PrivateKey:      "-----BEGIN RSA PRIVATE KEY----- (etc)",
-					Fingerprint:     "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
-					VcnOCID:         "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					RegionKey:   "phx",
+					TenancyOCID: "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					UserOCID:    "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					PrivateKey:  "-----BEGIN RSA PRIVATE KEY----- (etc)",
+					Fingerprint: "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
 				},
+				CompartmentOCID: "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+				VcnOCID:         "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 			},
 			errs: field.ErrorList{
 				&field.Error{Type: field.ErrorTypeRequired, Field: "auth.region", BadValue: ""},
@@ -140,14 +140,14 @@ func TestValidateConfig(t *testing.T) {
 			name: "missing_region_key",
 			in: &Config{
 				Auth: AuthConfig{
-					Region:          "us-phoenix-1",
-					CompartmentOCID: "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					TenancyOCID:     "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					UserOCID:        "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					PrivateKey:      "-----BEGIN RSA PRIVATE KEY----- (etc)",
-					Fingerprint:     "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
-					VcnOCID:         "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					Region:      "us-phoenix-1",
+					TenancyOCID: "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					UserOCID:    "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					PrivateKey:  "-----BEGIN RSA PRIVATE KEY----- (etc)",
+					Fingerprint: "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
 				},
+				CompartmentOCID: "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+				VcnOCID:         "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 			},
 			errs: field.ErrorList{
 				&field.Error{Type: field.ErrorTypeRequired, Field: "auth.region_key", BadValue: ""},
@@ -156,30 +156,46 @@ func TestValidateConfig(t *testing.T) {
 			name: "missing_tenancy_ocid",
 			in: &Config{
 				Auth: AuthConfig{
-					Region:          "us-phoenix-1",
-					RegionKey:       "phx",
-					CompartmentOCID: "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					UserOCID:        "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					PrivateKey:      "-----BEGIN RSA PRIVATE KEY----- (etc)",
-					Fingerprint:     "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
-					VcnOCID:         "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					Region:      "us-phoenix-1",
+					RegionKey:   "phx",
+					UserOCID:    "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					PrivateKey:  "-----BEGIN RSA PRIVATE KEY----- (etc)",
+					Fingerprint: "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
 				},
+				CompartmentOCID: "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+				VcnOCID:         "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 			},
 			errs: field.ErrorList{
 				&field.Error{Type: field.ErrorTypeRequired, Field: "auth.tenancy", BadValue: ""},
 			},
 		}, {
+			name: "missing_compartment_ocid",
+			in: &Config{
+				Auth: AuthConfig{
+					Region:      "us-phoenix-1",
+					RegionKey:   "phx",
+					TenancyOCID: "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					UserOCID:    "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					PrivateKey:  "-----BEGIN RSA PRIVATE KEY----- (etc)",
+					Fingerprint: "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
+				},
+				VcnOCID: "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			},
+			errs: field.ErrorList{
+				&field.Error{Type: field.ErrorTypeRequired, Field: "compartment", BadValue: ""},
+			},
+		}, {
 			name: "missing_user_ocid",
 			in: &Config{
 				Auth: AuthConfig{
-					Region:          "us-phoenix-1",
-					RegionKey:       "phx",
-					CompartmentOCID: "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					TenancyOCID:     "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					PrivateKey:      "-----BEGIN RSA PRIVATE KEY----- (etc)",
-					Fingerprint:     "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
-					VcnOCID:         "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					Region:      "us-phoenix-1",
+					RegionKey:   "phx",
+					TenancyOCID: "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					PrivateKey:  "-----BEGIN RSA PRIVATE KEY----- (etc)",
+					Fingerprint: "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
 				},
+				CompartmentOCID: "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+				VcnOCID:         "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 			},
 			errs: field.ErrorList{
 				&field.Error{Type: field.ErrorTypeRequired, Field: "auth.user", BadValue: ""},
@@ -188,14 +204,14 @@ func TestValidateConfig(t *testing.T) {
 			name: "missing_key_file",
 			in: &Config{
 				Auth: AuthConfig{
-					Region:          "us-phoenix-1",
-					RegionKey:       "phx",
-					CompartmentOCID: "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					TenancyOCID:     "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					UserOCID:        "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					Fingerprint:     "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
-					VcnOCID:         "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					Region:      "us-phoenix-1",
+					RegionKey:   "phx",
+					TenancyOCID: "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					UserOCID:    "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					Fingerprint: "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
 				},
+				CompartmentOCID: "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+				VcnOCID:         "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 			},
 			errs: field.ErrorList{
 				&field.Error{Type: field.ErrorTypeRequired, Field: "auth.key", BadValue: ""},
@@ -204,14 +220,14 @@ func TestValidateConfig(t *testing.T) {
 			name: "missing_fingerprint",
 			in: &Config{
 				Auth: AuthConfig{
-					Region:          "us-phoenix-1",
-					RegionKey:       "phx",
-					CompartmentOCID: "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					TenancyOCID:     "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					UserOCID:        "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					PrivateKey:      "-----BEGIN RSA PRIVATE KEY----- (etc)",
-					VcnOCID:         "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					Region:      "us-phoenix-1",
+					RegionKey:   "phx",
+					TenancyOCID: "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					UserOCID:    "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					PrivateKey:  "-----BEGIN RSA PRIVATE KEY----- (etc)",
 				},
+				CompartmentOCID: "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+				VcnOCID:         "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 			},
 			errs: field.ErrorList{
 				&field.Error{Type: field.ErrorTypeRequired, Field: "auth.fingerprint", BadValue: ""},
@@ -220,26 +236,26 @@ func TestValidateConfig(t *testing.T) {
 			name: "missing_vcn",
 			in: &Config{
 				Auth: AuthConfig{
-					Region:          "us-phoenix-1",
-					RegionKey:       "phx",
-					CompartmentOCID: "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					TenancyOCID:     "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					UserOCID:        "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					PrivateKey:      "-----BEGIN RSA PRIVATE KEY----- (etc)",
-					Fingerprint:     "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
+					Region:      "us-phoenix-1",
+					RegionKey:   "phx",
+					TenancyOCID: "ocid1.tennancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					UserOCID:    "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					PrivateKey:  "-----BEGIN RSA PRIVATE KEY----- (etc)",
+					Fingerprint: "d4:1d:8c:d9:8f:00:b2:04:e9:80:09:98:ec:f8:42:7e",
 				},
+				CompartmentOCID: "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 			},
 			errs: field.ErrorList{
-				&field.Error{Type: field.ErrorTypeRequired, Field: "auth.vcn", BadValue: ""},
+				&field.Error{Type: field.ErrorTypeRequired, Field: "vcn", BadValue: ""},
 			},
 		}, {
 			name: "valid with instance principals enabled",
 			in: &Config{
 				UseInstancePrincipals: true,
 				Auth: AuthConfig{
-					VcnOCID:   "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 					RegionKey: "phx",
 				},
+				VcnOCID: "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 			},
 			errs: field.ErrorList{},
 		}, {
@@ -252,9 +268,10 @@ func TestValidateConfig(t *testing.T) {
 					UserOCID:    "ocid1.user.oc1..aaaaaaaai77mql2xerv7cn6wu3nhxang3y4jk56vo5bn5l5lysl34avnui3q",
 					PrivateKey:  "-----BEGIN RSA PRIVATE KEY----- (etc)",
 					Fingerprint: "8c:bf:17:7b:5f:e0:7d:13:75:11:d6:39:0d:e2:84:74",
-					VcnOCID:     "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 					RegionKey:   "phx",
 				},
+				VcnOCID:         "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+				CompartmentOCID: "ocid1.compartment.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 			},
 			errs: field.ErrorList{
 				&field.Error{Type: field.ErrorTypeForbidden, Field: "auth.region", Detail: "cannot be used when useInstancePrincipals is enabled", BadValue: ""},
