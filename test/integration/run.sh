@@ -129,6 +129,7 @@ trap _trap_2 EXIT
 
 INSTANCE_IP=$(terraform output instance_public_ip)
 VOLUME_NAME=$(terraform output volume_ocid | cut -d'.' -f5)
+NODE_OCID=$(terraform output instance_ocid)
 
 # Run tests on provisioned instance.
 ssh \
@@ -137,5 +138,5 @@ ssh \
     -o StrictHostKeyChecking=no \
     -i _tmp/instance_key \
     opc@${INSTANCE_IP} \
-    "bash --login -c \"sudo OCI_FLEXD_DRIVER_DIRECTORY=/home/opc VOLUME_NAME=${VOLUME_NAME} /home/opc/integration-tests -test.v\""
+    "bash --login -c \"sudo NODE_OCID=${NODE_OCID} OCI_FLEXD_DRIVER_DIRECTORY=/home/opc VOLUME_NAME=${VOLUME_NAME} /home/opc/integration-tests -test.v\""
 RET_CODE=$?

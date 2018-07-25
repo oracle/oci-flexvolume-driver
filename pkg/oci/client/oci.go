@@ -20,15 +20,11 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 	"time"
-
-	"github.com/oracle/oci-flexvolume-driver/pkg/oci/client/cache"
 
 	"github.com/oracle/oci-go-sdk/common"
 	"github.com/oracle/oci-go-sdk/common/auth"
@@ -51,9 +47,8 @@ type Interface interface {
 	// ATTACHED state.
 	WaitForVolumeAttached(volumeAttachmentID string) (core.VolumeAttachment, error)
 
-	// GetInstanceByNodeName retrieves the oci.Instance corresponding or
-	// a SearchError if no instance matching the node name is found.
-	GetInstanceByNodeName(name string) (*core.Instance, error)
+	// GetInstance retrieves the oci.Instance for a given OCID.
+	GetInstance(id string) (*core.Instance, error)
 
 	// AttachVolume attaches a block storage volume to the specified instance.
 	// See https://docs.us-phoenix-1.oraclecloud.com/api/#/en/iaas/20160918/VolumeAttachment/AttachVolume
@@ -208,209 +203,17 @@ func (c *client) getVCNCompartment() (*string, error) {
 	return vcn.CompartmentId, nil
 }
 
-func (c *client) getAllSubnetsForVCN(vcnCompartment *string) (*[]core.Subnet, error) {
-	var page *string
-	subnetList := []core.Subnet{}
+// GetInstance retrieves the corresponding core.Instance by OCID.
+func (c *client) GetInstance(id string) (*core.Instance, error) {
+	resp, err := c.compute.GetInstance(c.ctx, core.GetInstanceRequest{
+		InstanceId: &id,
+	})
 
-	for {
-		request := core.ListSubnetsRequest{
-			CompartmentId: vcnCompartment,
-			VcnId:         &c.config.Auth.VcnOCID,
-			Page:          page,
-		}
-		r, err := func() (core.ListSubnetsResponse, error) {
-			ctx, cancel := context.WithTimeout(c.ctx, time.Minute)
-			defer cancel()
-			return c.network.ListSubnets(ctx, request)
-		}()
-		if err != nil {
-			return nil, err
-		}
-		subnets := r.Items
-
-		subnetList = append(subnetList, subnets...)
-		if page = r.OpcNextPage; r.OpcNextPage == nil {
-			break
-		}
-	}
-	return &subnetList, nil
-}
-
-func (c *client) isVnicAttachmentInSubnets(vnicAttachment *core.VnicAttachment, subnets *[]core.Subnet) bool {
-	for _, subnet := range *subnets {
-		if *vnicAttachment.SubnetId == *subnet.Id {
-			return true
-		}
-	}
-	return false
-}
-
-// findInstanceByNodeNameIsVNIC tries to find an OCI Instance to attach a volume to.
-// It makes the assumption that the nodename has to be resolvable.
-// https://kubernetes.io/docs/concepts/architecture/nodes/#management
-// So if the displayname doesn't match the nodename then
-// 1) get the IP of the node name doing a reverse lookup and see if we can find it.
-// I'm leaving the DNS lookup till later as the options below fix the OKE issue
-// 2) see if the nodename is equal to the hostname label
-// 3) see if the nodename is an IP
-func (c *client) findInstanceByNodeNameIsVNIC(cache *cache.OCICache, nodeName string, compartment *string, vcnCompartment *string) (*core.Instance, error) {
-	subnets, err := c.getAllSubnetsForVCN(vcnCompartment)
-	if err != nil {
-		log.Printf("Error getting subnets for VCN: %s", *vcnCompartment)
-		return nil, err
-	}
-	if len(*subnets) == 0 {
-		return nil, fmt.Errorf("no subnets defined for VCN: %s", *vcnCompartment)
-	}
-
-	var running []core.Instance
-	var page *string
-	for {
-		vnicAttachmentsRequest := core.ListVnicAttachmentsRequest{
-			CompartmentId: compartment,
-			Page:          page,
-		}
-		vnicAttachments, err := func() (core.ListVnicAttachmentsResponse, error) {
-			ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
-			defer cancel()
-			return c.compute.ListVnicAttachments(ctx, vnicAttachmentsRequest)
-		}()
-		if err != nil {
-			return nil, err
-		}
-		for _, attachment := range vnicAttachments.Items {
-			if !c.isVnicAttachmentInSubnets(&attachment, subnets) {
-				continue
-			}
-			if attachment.LifecycleState == core.VnicAttachmentLifecycleStateAttached {
-				vnic, ok := cache.GetVnic(*attachment.VnicId)
-				if !ok {
-					vnicRequest := core.GetVnicRequest{
-						VnicId: attachment.VnicId,
-					}
-					vnicResponse, err := func() (core.GetVnicResponse, error) {
-						ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
-						defer cancel()
-						return c.network.GetVnic(ctx, vnicRequest)
-					}()
-					if err != nil {
-						log.Printf("Error getting Vnic for attachment: %s(%v)", attachment, err)
-						continue
-					}
-					vnic = &vnicResponse.Vnic
-					cache.SetVnic(*attachment.VnicId, vnic)
-				}
-				if (vnic.PublicIp != nil && *vnic.PublicIp == nodeName) ||
-					(vnic.HostnameLabel != nil && (*vnic.HostnameLabel != "" && strings.HasPrefix(nodeName, *vnic.HostnameLabel))) {
-					instanceRequest := core.GetInstanceRequest{
-						InstanceId: attachment.InstanceId,
-					}
-					instanceResponse, err := func() (core.GetInstanceResponse, error) {
-						ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
-						defer cancel()
-						return c.compute.GetInstance(ctx, instanceRequest)
-					}()
-					if err != nil {
-						log.Printf("Error getting instance for attachment: %s", attachment)
-						return nil, err
-					}
-					instance := instanceResponse.Instance
-					if instance.LifecycleState == core.InstanceLifecycleStateRunning {
-						running = append(running, instance)
-					}
-				}
-			}
-		}
-		if page = vnicAttachments.OpcNextPage; vnicAttachments.OpcNextPage == nil {
-			break
-		}
-	}
-	if len(running) != 1 {
-		return nil, fmt.Errorf("expected one instance vnic ip/hostname '%s' but got %d", nodeName, len(running))
-	}
-
-	return &running[0], nil
-}
-
-// findInstanceByNodeNameIsDisplayName returns the first running instance where the display name and node name match.
-// If no instance is found we return an error.
-func (c *client) findInstanceByNodeNameIsDisplayName(nodeName string, compartment *string) (*core.Instance, error) {
-	var running []core.Instance
-	var page *string
-	for {
-		listInstancesRequest := core.ListInstancesRequest{
-			CompartmentId: compartment,
-			DisplayName:   &nodeName,
-			Page:          page,
-		}
-		r, err := func() (core.ListInstancesResponse, error) {
-			ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
-			defer cancel()
-			return c.compute.ListInstances(ctx, listInstancesRequest)
-		}()
-		if err != nil {
-			return nil, err
-		}
-
-		for _, i := range r.Items {
-			if i.LifecycleState == core.InstanceLifecycleStateRunning {
-				running = append(running, i)
-			}
-		}
-
-		if page = r.OpcNextPage; r.OpcNextPage == nil {
-			break
-		}
-	}
-
-	if len(running) != 1 {
-		return nil, fmt.Errorf("expected one instance with display name %q but got %d", nodeName, len(running))
-	}
-
-	return &running[0], nil
-}
-
-// GetDriverDirectory gets the path for the flexvolume driver either from the
-// env or default.
-func getCacheDirectory() string {
-	path := os.Getenv("OCI_FLEXD_CACHE_DIRECTORY")
-	if path != "" {
-		return path
-	}
-
-	path = os.Getenv("OCI_FLEXD_DRIVER_DIRECTORY")
-	if path != "" {
-		return path
-	}
-
-	return "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci"
-}
-
-// GetInstanceByNodeName retrieves the corresponding core.Instance or a
-// SearchError if no instance matching the node name is found.
-func (c *client) GetInstanceByNodeName(nodeName string) (*core.Instance, error) {
-	log.Printf("GetInstanceByNodeName: %s", nodeName)
-	ociCache, err := cache.Open(fmt.Sprintf("%s/%s", getCacheDirectory(), "nodenamecache.json"))
-	if err != nil {
-		return nil, err
-	}
-	defer ociCache.Close()
-
-	vcnCompartment, err := c.getVCNCompartment()
 	if err != nil {
 		return nil, err
 	}
 
-	// Cache lookup failed so time to refill the cache
-	instance, err := c.findInstanceByNodeNameIsDisplayName(nodeName, common.String(c.config.Auth.CompartmentOCID))
-	if err != nil {
-		log.Printf("Unable to find OCI instance by displayname trying hostname/public ip")
-		instance, err = c.findInstanceByNodeNameIsVNIC(ociCache, nodeName, common.String(c.config.Auth.CompartmentOCID), vcnCompartment)
-		if err != nil {
-			log.Printf("Unable to find OCI instance by hostname/displayname")
-		}
-	}
-	return instance, err
+	return &resp.Instance, nil
 }
 
 // AttachVolume attaches a block storage volume to the specified instance.

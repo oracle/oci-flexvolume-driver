@@ -15,17 +15,22 @@
 package driver
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/oracle/oci-go-sdk/core"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
+
 	"github.com/oracle/oci-flexvolume-driver/pkg/flexvolume"
 	"github.com/oracle/oci-flexvolume-driver/pkg/iscsi"
 	"github.com/oracle/oci-flexvolume-driver/pkg/oci/client"
-
-	"github.com/oracle/oci-go-sdk/core"
 )
 
 const (
@@ -36,7 +41,33 @@ const (
 )
 
 // OCIFlexvolumeDriver implements the flexvolume.Driver interface for OCI.
-type OCIFlexvolumeDriver struct{}
+type OCIFlexvolumeDriver struct {
+	K      kubernetes.Interface
+	master bool
+}
+
+// NewOCIFlexvolumeDriver creates a new driver
+func NewOCIFlexvolumeDriver() (fvd *OCIFlexvolumeDriver, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			fvd = nil
+			err = fmt.Errorf("%+v", e)
+		}
+	}()
+
+	path := GetConfigPath()
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		k, err := constructKubeClient()
+		if err != nil {
+			return nil, err
+		}
+		return &OCIFlexvolumeDriver{K: k, master: true}, nil
+	} else if os.IsNotExist(err) {
+		log.Printf("Config file %q does not exist. Assuming worker node.", path)
+		return &OCIFlexvolumeDriver{}, nil
+	}
+	return nil, err
+}
 
 // GetDriverDirectory gets the ath for the flexvolume driver either from the
 // env or default.
@@ -49,27 +80,38 @@ func GetDriverDirectory() string {
 	return path
 }
 
-// GetConfigPath gets the path to the OCI API credentials.
-func GetConfigPath() string {
+// GetConfigDirectory gets the path to where config files are stored.
+func GetConfigDirectory() string {
 	path := os.Getenv("OCI_FLEXD_CONFIG_DIRECTORY")
 	if path != "" {
-		return filepath.Join(path, "config.yaml")
+		return path
 	}
 
-	return filepath.Join(GetDriverDirectory(), "config.yaml")
+	return GetDriverDirectory()
+}
+
+// GetConfigPath gets the path to the OCI API credentials.
+func GetConfigPath() string {
+	path := GetConfigDirectory()
+	return filepath.Join(path, "config.yaml")
 }
 
 // Init checks that we have the appropriate credentials and metadata API access
 // on driver initialisation.
 func (d OCIFlexvolumeDriver) Init() flexvolume.DriverStatus {
 	path := GetConfigPath()
-	if _, err := os.Stat(path); !os.IsNotExist(err) {
-		_, err = client.New(path)
+	if d.master {
+		_, err := client.New(path)
+		if err != nil {
+			return flexvolume.Fail(err)
+		}
+
+		_, err = constructKubeClient()
 		if err != nil {
 			return flexvolume.Fail(err)
 		}
 	} else {
-		log.Printf("Config file %q does not exist. Assuming worker node.", path)
+		log.Printf("Assuming worker node.")
 	}
 
 	return flexvolume.Succeed()
@@ -94,6 +136,33 @@ func deriveVolumeOCID(regionKey string, volumeName string) string {
 	return volumeOCID
 }
 
+// constructKubeClient uses a kubeconfig layed down by a secret via deploy.sh to return
+// a kube clientset
+func constructKubeClient() (*kubernetes.Clientset, error) {
+	fp := GetConfigDirectory() + "/kubeconfig"
+
+	c, err := clientcmd.BuildConfigFromFlags("", fp)
+	if err != nil {
+		return nil, err
+	}
+
+	k, err := kubernetes.NewForConfig(c)
+
+	return k, err
+}
+
+// lookupNodeID returns the OCID for the given nodeName.
+func lookupNodeID(k kubernetes.Interface, nodeName string) (string, error) {
+	n, err := k.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+	if n.Spec.ProviderID == "" {
+		return "", errors.New("node is missing provider id")
+	}
+	return n.Spec.ProviderID, nil
+}
+
 // Attach initiates the attachment of the given OCI volume to the k8s worker
 // node.
 func (d OCIFlexvolumeDriver) Attach(opts flexvolume.Options, nodeName string) flexvolume.DriverStatus {
@@ -102,7 +171,12 @@ func (d OCIFlexvolumeDriver) Attach(opts flexvolume.Options, nodeName string) fl
 		return flexvolume.Fail(err)
 	}
 
-	instance, err := c.GetInstanceByNodeName(nodeName)
+	id, err := lookupNodeID(d.K, nodeName)
+	if err != nil {
+		return flexvolume.Fail(err)
+	}
+
+	instance, err := c.GetInstance(id)
 	if err != nil {
 		return flexvolume.Fail(err)
 	}
