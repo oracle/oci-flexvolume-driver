@@ -42,11 +42,11 @@ type AuthConfig struct {
 	Region               string `yaml:"region"`
 	RegionKey            string `yaml:"regionKey"`
 	TenancyOCID          string `yaml:"tenancy"`
-	CompartmentOCID      string `yaml:"compartment"` // DEPRECATED (we no longer directly use this)
+	CompartmentOCID      string `yaml:"compartment"`
 	UserOCID             string `yaml:"user"`
 	PrivateKey           string `yaml:"key"`
 	Passphrase           string `yaml:"passphrase"`
-	PrivateKeyPassphrase string `yaml:"key_passphase"` // DEPRECATED
+	PrivateKeyPassphrase string `yaml:"key_passphase"` // DEPRECIATED
 	Fingerprint          string `yaml:"fingerprint"`
 	VcnOCID              string `yaml:"vcn"`
 }
@@ -191,6 +191,9 @@ func validateAuthConfig(c *Config, fldPath *field.Path) field.ErrorList {
 		}
 		if c.Auth.TenancyOCID == "" {
 			errList = append(errList, field.Required(fldPath.Child("tenancy"), ""))
+		}
+		if c.Auth.CompartmentOCID == "" {
+			errList = append(errList, field.Required(fldPath.Child("compartment"), ""))
 		}
 		if c.Auth.UserOCID == "" {
 			errList = append(errList, field.Required(fldPath.Child("user"), ""))

@@ -163,15 +163,9 @@ func (c *client) WaitForVolumeAttached(volumeAttachmentId string) (core.VolumeAt
 // ATTACHING or ATTACHED and returns the first volume attachment found.
 func (c *client) FindVolumeAttachment(volumeId string) (core.VolumeAttachment, error) {
 	var page *string
-
-	vcnCompartment, err := c.getVCNCompartment()
-	if err != nil {
-		return nil, err
-	}
-
 	for {
 		request := core.ListVolumeAttachmentsRequest{
-			CompartmentId: vcnCompartment,
+			CompartmentId: &c.config.Auth.CompartmentOCID,
 			Page:          page,
 			VolumeId:      &volumeId,
 		}
@@ -201,25 +195,12 @@ func (c *client) FindVolumeAttachment(volumeId string) (core.VolumeAttachment, e
 	return nil, fmt.Errorf("failed to find volume attachment for %q", volumeId)
 }
 
-func (c *client) getVCNCompartment() (*string, error) {
-	ctx, cancel := context.WithTimeout(c.ctx, time.Minute)
-	defer cancel()
-
-	vcn, err := c.network.GetVcn(ctx, core.GetVcnRequest{VcnId: &c.config.Auth.VcnOCID})
-	if err != nil {
-		return nil, err
-	}
-
-	return vcn.CompartmentId, nil
-}
-
-func (c *client) getAllSubnetsForVCN(vcnCompartment *string) (*[]core.Subnet, error) {
+func (c *client) getAllSubnetsForVNC() (*[]core.Subnet, error) {
 	var page *string
 	subnetList := []core.Subnet{}
-
 	for {
 		request := core.ListSubnetsRequest{
-			CompartmentId: vcnCompartment,
+			CompartmentId: &c.config.Auth.CompartmentOCID,
 			VcnId:         &c.config.Auth.VcnOCID,
 			Page:          page,
 		}
@@ -250,16 +231,16 @@ func (c *client) isVnicAttachmentInSubnets(vnicAttachment *core.VnicAttachment, 
 	return false
 }
 
-// findInstanceByNodeNameIsVNIC tries to find an OCI Instance to attach a volume to.
-// It makes the assumption that the nodename has to be resolvable.
+// findInstanceByNodeNameIsVnic try to find the BM Instance
+// // it makes the assumption that he nodename has to be resolvable
 // https://kubernetes.io/docs/concepts/architecture/nodes/#management
 // So if the displayname doesn't match the nodename then
 // 1) get the IP of the node name doing a reverse lookup and see if we can find it.
 // I'm leaving the DNS lookup till later as the options below fix the OKE issue
 // 2) see if the nodename is equal to the hostname label
-// 3) see if the nodename is an IP
-func (c *client) findInstanceByNodeNameIsVNIC(cache *cache.OCICache, nodeName string, compartment *string) (*core.Instance, error) {
-	subnets, err := c.getAllSubnetsForVCN(compartment)
+// 3) see if the nodename is an ip
+func (c *client) findInstanceByNodeNameIsVnic(cache *cache.OCICache, nodeName string) (*core.Instance, error) {
+	subnets, err := c.getAllSubnetsForVNC()
 	if err != nil {
 		log.Printf("Error getting subnets for VCN: %s", c.config.Auth.VcnOCID)
 		return nil, err
@@ -272,7 +253,7 @@ func (c *client) findInstanceByNodeNameIsVNIC(cache *cache.OCICache, nodeName st
 	var page *string
 	for {
 		vnicAttachmentsRequest := core.ListVnicAttachmentsRequest{
-			CompartmentId: compartment,
+			CompartmentId: &c.config.Auth.CompartmentOCID,
 			Page:          page,
 		}
 		vnicAttachments, err := func() (core.ListVnicAttachmentsResponse, error) {
@@ -337,14 +318,12 @@ func (c *client) findInstanceByNodeNameIsVNIC(cache *cache.OCICache, nodeName st
 	return &running[0], nil
 }
 
-// findInstanceByNodeNameIsDisplayName returns the first running instance where the display name and node name match.
-// If no instance is found we return an error.
-func (c *client) findInstanceByNodeNameIsDisplayName(nodeName string, compartment *string) (*core.Instance, error) {
+func (c *client) findInstanceByNodeNameIsDisplayName(nodeName string) (*core.Instance, error) {
 	var running []core.Instance
 	var page *string
 	for {
 		listInstancesRequest := core.ListInstancesRequest{
-			CompartmentId: compartment,
+			CompartmentId: &c.config.Auth.CompartmentOCID,
 			DisplayName:   &nodeName,
 			Page:          page,
 		}
@@ -394,23 +373,18 @@ func getCacheDirectory() string {
 // GetInstanceByNodeName retrieves the corresponding core.Instance or a
 // SearchError if no instance matching the node name is found.
 func (c *client) GetInstanceByNodeName(nodeName string) (*core.Instance, error) {
-	log.Printf("GetInstanceByNodeName: %s", nodeName)
+	log.Printf("GetInstanceByNodeName:%s", nodeName)
 	ociCache, err := cache.Open(fmt.Sprintf("%s/%s", getCacheDirectory(), "nodenamecache.json"))
 	if err != nil {
 		return nil, err
 	}
 	defer ociCache.Close()
 
-	vcnCompartment, err := c.getVCNCompartment()
-	if err != nil {
-		return nil, err
-	}
-
 	// Cache lookup failed so time to refill the cache
-	instance, err := c.findInstanceByNodeNameIsDisplayName(nodeName, vcnCompartment)
+	instance, err := c.findInstanceByNodeNameIsDisplayName(nodeName)
 	if err != nil {
 		log.Printf("Unable to find OCI instance by displayname trying hostname/public ip")
-		instance, err = c.findInstanceByNodeNameIsVNIC(ociCache, nodeName, vcnCompartment)
+		instance, err = c.findInstanceByNodeNameIsVnic(ociCache, nodeName)
 		if err != nil {
 			log.Printf("Unable to find OCI instance by hostname/displayname")
 		}
