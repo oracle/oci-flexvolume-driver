@@ -164,14 +164,9 @@ func (c *client) WaitForVolumeAttached(volumeAttachmentId string) (core.VolumeAt
 func (c *client) FindVolumeAttachment(volumeId string) (core.VolumeAttachment, error) {
 	var page *string
 
-	vcnCompartment, err := c.getVCNCompartment()
-	if err != nil {
-		return nil, err
-	}
-
 	for {
 		request := core.ListVolumeAttachmentsRequest{
-			CompartmentId: vcnCompartment,
+			CompartmentId: common.String(c.config.Auth.CompartmentOCID),
 			Page:          page,
 			VolumeId:      &volumeId,
 		}
@@ -258,14 +253,14 @@ func (c *client) isVnicAttachmentInSubnets(vnicAttachment *core.VnicAttachment, 
 // I'm leaving the DNS lookup till later as the options below fix the OKE issue
 // 2) see if the nodename is equal to the hostname label
 // 3) see if the nodename is an IP
-func (c *client) findInstanceByNodeNameIsVNIC(cache *cache.OCICache, nodeName string, compartment *string) (*core.Instance, error) {
-	subnets, err := c.getAllSubnetsForVCN(compartment)
+func (c *client) findInstanceByNodeNameIsVNIC(cache *cache.OCICache, nodeName string, compartment *string, vcnCompartment *string) (*core.Instance, error) {
+	subnets, err := c.getAllSubnetsForVCN(vcnCompartment)
 	if err != nil {
-		log.Printf("Error getting subnets for VCN: %s", c.config.Auth.VcnOCID)
+		log.Printf("Error getting subnets for VCN: %s", *vcnCompartment)
 		return nil, err
 	}
 	if len(*subnets) == 0 {
-		return nil, fmt.Errorf("no subnets defined for VCN: %s", c.config.Auth.VcnOCID)
+		return nil, fmt.Errorf("no subnets defined for VCN: %s", *vcnCompartment)
 	}
 
 	var running []core.Instance
@@ -407,10 +402,10 @@ func (c *client) GetInstanceByNodeName(nodeName string) (*core.Instance, error) 
 	}
 
 	// Cache lookup failed so time to refill the cache
-	instance, err := c.findInstanceByNodeNameIsDisplayName(nodeName, vcnCompartment)
+	instance, err := c.findInstanceByNodeNameIsDisplayName(nodeName, common.String(c.config.Auth.CompartmentOCID))
 	if err != nil {
 		log.Printf("Unable to find OCI instance by displayname trying hostname/public ip")
-		instance, err = c.findInstanceByNodeNameIsVNIC(ociCache, nodeName, vcnCompartment)
+		instance, err = c.findInstanceByNodeNameIsVNIC(ociCache, nodeName, common.String(c.config.Auth.CompartmentOCID), vcnCompartment)
 		if err != nil {
 			log.Printf("Unable to find OCI instance by hostname/displayname")
 		}
