@@ -51,6 +51,8 @@ type Interface interface {
 	// ATTACHED state.
 	WaitForVolumeAttached(volumeAttachmentId string) (core.VolumeAttachment, error)
 
+	// GetInstance retrieves the oci.Instance for a given ocid.
+	GetInstance(id string) (*core.Instance, error)
 	// GetInstanceByNodeName retrieves the oci.Instance corresponding or
 	// a SearchError if no instance matching the node name is found.
 	GetInstanceByNodeName(name string) (*core.Instance, error)
@@ -389,6 +391,19 @@ func getCacheDirectory() string {
 	}
 
 	return "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci"
+}
+
+// GetInstance retrieves the corresponding core.Instance by OCID.
+func (c *client) GetInstance(id string) (*core.Instance, error) {
+	resp, err := c.compute.GetInstance(c.ctx, core.GetInstanceRequest{
+		InstanceId: &id,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &resp.Instance, nil
 }
 
 // GetInstanceByNodeName retrieves the corresponding core.Instance or a
