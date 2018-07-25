@@ -3,13 +3,17 @@
   branch = "master"
 
 [[constraint]]
-  name = "k8s.io/apimachinery"
-  branch = "master"
-
-[[constraint]]
   name = "gopkg.in/yaml.v2"
   branch = "v2"
 
 [[constraint]]
   name = "github.com/oracle/oci-go-sdk"
   version = "v1.0.0"
+
+[[constraint]]
+  branch = "release-1.11"
+  name = "k8s.io/apimachinery"
+
+[[constraint]]
+  name = "k8s.io/client-go"
+  version = "~8.0"
