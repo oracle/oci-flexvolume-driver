@@ -65,6 +65,7 @@ def _finish_with_exit_code(exit_code, write_report=True, report_dir_path=REPORT_
         copyfile(DEBUG_FILE, report_dir_path + "/" + DEBUG_FILE)
         with open(report_dir_path + "/" + report_file, "w+") as file: 
             file.write(str(report_dir_path + "/" + DEBUG_FILE))
+    finish_canary_metrics()
     sys.exit(exit_code)           
 
 def _check_env(args):
@@ -437,6 +438,29 @@ def _cluster_check():
         _log("Error: This test requires a cluster with at least 2 instances")
         _finish_with_exit_code(1)
 
+def canary_metric_date():
+   return datetime.datetime.today().strftime('%Y-%m-%d-%H%m%S')
+
+def init_canary_metrics():
+    if "METRICS_FILE" in os.environ:
+        _log("generating metrics file...")
+        canary_metrics = {}
+        canary_metrics["start_time"] = canary_metric_date()
+        canary_metrics["flex_volume_driver_simple"] = 0
+        with open(os.environ.get("METRICS_FILE"), 'w') as metrics_file:
+            json.dump(canary_metrics, metrics_file, sort_keys=True, indent=4)
+
+def update_canary_metric(name, result):
+    if "METRICS_FILE" in os.environ:
+        _log("updating metrics fle...")
+        with open(os.environ.get("METRICS_FILE"), 'r') as metrics_file:
+            canary_metrics = json.load(metrics_file)
+            canary_metrics[name] = result
+        with open(os.environ.get("METRICS_FILE"), 'w') as metrics_file:
+            json.dump(canary_metrics, metrics_file, sort_keys=True, indent=4)
+
+def finish_canary_metrics():
+   update_canary_metric("end_time", canary_metric_date())
 
 def _main():
     _reset_debug_file()
@@ -524,6 +548,8 @@ def _main():
     if not args['no_test']:
         _log("Running system test: ", as_banner=True)
 
+        init_canary_metrics() 
+
         _log("Starting the replication controller (creates a single nginx pod).")
         _kubectl("delete -f " + replication_controller, exit_on_error=False, display_errors=False)
         _kubectl("create -f " + replication_controller)
@@ -569,6 +595,8 @@ def _main():
         if args['destructive']:
             _log("Adding the original node back into the cluster.")
             _kubectl("uncordon " + node1)
+
+        update_canary_metric("flex_volume_driver_simple", 1)
     
     _finish_with_exit_code(0)
 
