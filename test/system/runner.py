@@ -438,6 +438,12 @@ def _cluster_check():
         _log("Error: This test requires a cluster with at least 2 instances")
         _finish_with_exit_code(1)
 
+
+# Canary Metrics **************************************************************
+# 
+
+CM_SIMPLE = "flex_volume_driver_simple"
+
 def canary_metric_date():
    return datetime.datetime.today().strftime('%Y-%m-%d-%H%m%S')
 
@@ -446,7 +452,7 @@ def init_canary_metrics():
         _log("generating metrics file...")
         canary_metrics = {}
         canary_metrics["start_time"] = canary_metric_date()
-        canary_metrics["flex_volume_driver_simple"] = 0
+        canary_metrics[CM_SIMPLE] = 0
         with open(os.environ.get("METRICS_FILE"), 'w') as metrics_file:
             json.dump(canary_metrics, metrics_file, sort_keys=True, indent=4)
 
@@ -461,6 +467,10 @@ def update_canary_metric(name, result):
 
 def finish_canary_metrics():
    update_canary_metric("end_time", canary_metric_date())
+
+
+# Main ************************************************************************
+# 
 
 def _main():
     _reset_debug_file()
@@ -596,7 +606,7 @@ def _main():
             _log("Adding the original node back into the cluster.")
             _kubectl("uncordon " + node1)
 
-        update_canary_metric("flex_volume_driver_simple", 1)
+        update_canary_metric(CM_SIMPLE, 1)
     
     _finish_with_exit_code(0)
 
