@@ -73,6 +73,7 @@ type Interface interface {
 
 // client extends a barmetal.Client.
 type client struct {
+	block   *core.BlockstorageClient
 	compute *core.ComputeClient
 	network *core.VirtualNetworkClient
 	config  *Config
@@ -107,6 +108,7 @@ func New(configPath string) (Interface, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	err = configureCustomTransport(&computeClient.BaseClient)
 	if err != nil {
 		return nil, err
@@ -121,7 +123,17 @@ func New(configPath string) (Interface, error) {
 		return nil, err
 	}
 
+	blockStorageClient, err := core.NewBlockstorageClientWithConfigurationProvider(configProvider)
+	if err != nil {
+		return nil, err
+	}
+	err = configureCustomTransport(&blockStorageClient.BaseClient)
+	if err != nil {
+		return nil, err
+	}
+
 	return &client{
+		block:   &blockStorageClient,
 		compute: &computeClient,
 		network: &virtualNetworkClient,
 		config:  config,
@@ -413,8 +425,79 @@ func (c *client) GetInstanceByNodeName(nodeName string) (*core.Instance, error) 
 	return instance, err
 }
 
+func (c *client) waitForVolumeAvailable(volumeID *string, timeout time.Duration) error {
+
+	isVolumeReady := func() (bool, error) {
+		getVolumeRequest := core.GetVolumeRequest{VolumeId: volumeID}
+		ctx, cancel := context.WithTimeout(c.ctx, c.timeout)
+		defer cancel()
+
+		getVolumeResponse, err := c.block.GetVolume(ctx, getVolumeRequest)
+		if err != nil {
+			return false, err
+		}
+
+		if getVolumeResponse.LifecycleState == core.VolumeLifecycleStateAvailable {
+			return true, nil
+		}
+
+		if getVolumeResponse.LifecycleState == core.VolumeLifecycleStateFaulty {
+			return false, fmt.Errorf("Failed to provision volume. Volume: %v is in Faulty state", *volumeID)
+		}
+
+		if getVolumeResponse.LifecycleState == core.VolumeLifecycleStateTerminated {
+			return false, fmt.Errorf("Failed to provision volume. Volume: %v is in Terminated state", *volumeID)
+		}
+
+		if getVolumeResponse.LifecycleState == core.VolumeLifecycleStateTerminating {
+			return false, fmt.Errorf("Failed to provision volume. Volume: %v is in Terminating state", *volumeID)
+		}
+
+		return false, nil
+	}
+
+	ready, err := isVolumeReady()
+	if err != nil {
+		return err
+	}
+	if ready {
+		return nil
+	}
+
+	//Not ready so we'll kick off a polling loop to wait for readyness or failure...
+	tickduration := time.Second * 5
+	timeoutticker := time.NewTicker(timeout)
+	defer timeoutticker.Stop()
+
+	ticker := time.NewTicker(tickduration)
+	defer ticker.Stop()
+
+	// Keep trying until we're timed out or got a result or got an error
+	for {
+		select {
+		case <-timeoutticker.C:
+			return fmt.Errorf("Timed out waiting for volume %v to become %s", *volumeID, core.VolumeLifecycleStateAvailable)
+
+		case <-ticker.C:
+			ready, err := isVolumeReady()
+			if err != nil {
+				return err
+			}
+			if ready {
+				return nil
+			}
+		}
+	}
+}
+
 // AttachVolume attaches a block storage volume to the specified instance.
 func (c *client) AttachVolume(instanceId, volumeId string) (core.VolumeAttachment, int, error) {
+	// Wait for volume to be available
+	err := c.waitForVolumeAvailable(&volumeId, time.Minute*3)
+	if err != nil {
+		return nil, 0, err
+	}
+
 	request := core.AttachVolumeRequest{
 		AttachVolumeDetails: core.AttachIScsiVolumeDetails{
 			InstanceId: &instanceId,
