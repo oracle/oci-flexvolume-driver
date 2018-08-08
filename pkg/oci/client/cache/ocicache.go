@@ -23,7 +23,7 @@ import (
 	"github.com/oracle/oci-go-sdk/core"
 )
 
-// OCICache contains cache info
+// OCICache contains cache info.
 type OCICache struct {
 	vnics    map[string]core.Vnic
 	file     *os.File

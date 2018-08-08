@@ -1,12 +1,9 @@
 /*
 Copyright 2014 The Kubernetes Authors.
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
     http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -32,11 +29,11 @@ func UnmountPath(mountPath string, mounter Interface) error {
 		return nil
 	}
 
-	notMount, err := mounter.IsLikelyNotMountPoint(mountPath)
+	notMnt, err := mounter.IsLikelyNotMountPoint(mountPath)
 	if err != nil {
 		return err
 	}
-	if notMount {
+	if notMnt {
 		log.Printf("Warning: %q is not a mountpoint, deleting", mountPath)
 		return os.Remove(mountPath)
 	}
@@ -45,11 +42,11 @@ func UnmountPath(mountPath string, mounter Interface) error {
 	if err := mounter.Unmount(mountPath); err != nil {
 		return err
 	}
-	notMount, mntErr := mounter.IsLikelyNotMountPoint(mountPath)
+	notMnt, mntErr := mounter.IsLikelyNotMountPoint(mountPath)
 	if mntErr != nil {
 		return err
 	}
-	if notMount {
+	if notMnt {
 		log.Printf("%q is unmounted, deleting the directory", mountPath)
 		return os.Remove(mountPath)
 	}
