@@ -18,42 +18,34 @@ limitations under the License.
 
 package mount
 
-// Mounter points to the mount path
 type Mounter struct {
 	mounterPath string
 }
 
-// Mount mounts the source to the target
 func (mounter *Mounter) Mount(source string, target string, fstype string, options []string) error {
 	return nil
 }
 
-// Unmount unmounts the source from the target
 func (mounter *Mounter) Unmount(target string) error {
 	return nil
 }
 
-// List returns a list of all mounted filesystems.
 func (mounter *Mounter) List() ([]MountPoint, error) {
 	return []MountPoint{}, nil
 }
 
-// IsLikelyNotMountPoint determines if a directory is not a mountpoint.
 func (mounter *Mounter) IsLikelyNotMountPoint(file string) (bool, error) {
 	return true, nil
 }
 
-// GetDeviceNameFromMount - given a mount point, find the device name from its global mount point
 func (mounter *Mounter) GetDeviceNameFromMount(mountPath, pluginDir string) (string, error) {
 	return "", nil
 }
 
-// DeviceOpened - verifies whether the device is still mounted on the system
 func (mounter *Mounter) DeviceOpened(pathname string) (bool, error) {
 	return false, nil
 }
 
-//PathIsDevice - determines if a path is a device
 func (mounter *Mounter) PathIsDevice(pathname string) (bool, error) {
 	return true, nil
 }
@@ -66,7 +58,6 @@ func (mounter *SafeFormatAndMount) diskLooksUnformatted(disk string) (bool, erro
 	return true, nil
 }
 
-// IsNotMountPoint - determines if a directory is not a mountpoint
 func IsNotMountPoint(file string) (bool, error) {
 	return true, nil
 }
