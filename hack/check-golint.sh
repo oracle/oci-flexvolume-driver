@@ -23,7 +23,9 @@ set -o pipefail
 TARGETS=$(for d in "$@"; do echo ./$d/...; done)
 
 echo -n "Checking golint: "
-ERRS=$(golint ${TARGETS} 2>&1 || true)
+
+ERRS=$(golint ${TARGETS} 2>&1 | grep -v -e mount.go -e mount_unsupported.go || true)
+# Ignore mount.go golint errors as code is sourced from Kubernetes core
 if [ -n "${ERRS}" ]; then
     echo "FAIL"
     echo "${ERRS}"
