@@ -19,13 +19,13 @@ import (
 	"testing"
 
 	"github.com/oracle/oci-flexvolume-driver/pkg/flexvolume"
-	"github.com/oracle/oci-flexvolume-driver/pkg/oci/driver"
+	"github.com/oracle/oci-flexvolume-driver/pkg/oci/driver/block"
 )
 
 // TestIdempotent checks that Attach, MountDevice, and UnmountDevice are
 // idempotent and (currently) that Detach is **not** idempotent.
 func TestIdempotent(t *testing.T) {
-	d := &driver.OCIFlexvolumeDriver{}
+	d := &block.Driver{}
 	opts := flexvolume.Options{
 		"kubernetes.io/fsType":         "ext4",
 		"kubernetes.io/pvOrVolumeName": fw.VolumeName,

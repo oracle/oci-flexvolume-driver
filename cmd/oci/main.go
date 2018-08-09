@@ -31,7 +31,7 @@ var build string
 func GetLogPath() string {
 	path := os.Getenv("OCI_FLEXD_DRIVER_LOG_DIR")
 	if path == "" {
-		path = driver.GetDriverDirectory()
+		path = driver.GetDirectory()
 	}
 	return path + "/oci_flexvolume_driver.log"
 }
@@ -50,5 +50,11 @@ func main() {
 	log.SetOutput(f)
 
 	log.Printf("OCI FlexVolume Driver version: %s (%s)", version, build)
-	flexvolume.ExecDriver(&driver.OCIFlexvolumeDriver{}, os.Args)
+
+	driver, err := driver.Get(driver.NameFromArgs(os.Args))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error loading driver: %v", err)
+	}
+
+	flexvolume.ExitWithResult(flexvolume.ExecDriver(driver, os.Args))
 }
