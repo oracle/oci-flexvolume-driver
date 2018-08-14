@@ -21,11 +21,15 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/oracle/oci-go-sdk/core"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
+
 	"github.com/oracle/oci-flexvolume-driver/pkg/flexvolume"
 	"github.com/oracle/oci-flexvolume-driver/pkg/iscsi"
 	"github.com/oracle/oci-flexvolume-driver/pkg/oci/client"
-
-	"github.com/oracle/oci-go-sdk/core"
 )
 
 const (
@@ -102,9 +106,42 @@ func (d OCIFlexvolumeDriver) Attach(opts flexvolume.Options, nodeName string) fl
 		return flexvolume.Fail(err)
 	}
 
-	instance, err := c.GetInstanceByNodeName(nodeName)
-	if err != nil {
-		return flexvolume.Fail(err)
+	var kubeClient kubernetes.Interface
+	if masterURL := os.Getenv("KUBE_MASTER_URL"); masterURL != "" {
+		kubeconfig, err := clientcmd.BuildConfigFromFlags(masterURL, "")
+		if err != nil {
+			return flexvolume.Fail(err)
+		}
+		kubeClient = kubernetes.NewForConfigOrDie(kubeconfig)
+	}
+
+	// First try getting the provider ID from the APIServer
+	var id string
+	if kubeClient != nil {
+		nodeList, err := kubeClient.CoreV1().Nodes().List(metav1.ListOptions{})
+		if err != nil {
+			return flexvolume.Fail(err)
+		}
+
+		for _, node := range nodeList.Items {
+			if node.Name == nodeName {
+				id = node.Spec.ProviderID
+				break
+			}
+		}
+	}
+
+	var instance *core.Instance
+	if id != "" {
+		instance, err = c.GetInstance(id)
+		if err != nil {
+			return flexvolume.Fail(err)
+		}
+	} else {
+		instance, err = c.GetInstanceByNodeName(nodeName)
+		if err != nil {
+			return flexvolume.Fail(err)
+		}
 	}
 
 	volumeOCID := deriveVolumeOCID(c.GetConfig().Auth.RegionKey, opts["kubernetes.io/pvOrVolumeName"])
