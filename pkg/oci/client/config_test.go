@@ -31,7 +31,8 @@ func TestConfigDefaulting(t *testing.T) {
 	cfg := &Config{metadata: instancemeta.NewMock(
 		&instancemeta.InstanceMetadata{
 			CompartmentOCID: expectedCompartmentOCID,
-			Region:          expectedRegionKey, // instance metadata API only returns the region key
+			RegionKey:       expectedRegionKey,
+			Region:          expectedRegion,
 		},
 	)}
 
@@ -49,53 +50,6 @@ func TestConfigDefaulting(t *testing.T) {
 
 	if cfg.Auth.CompartmentOCID != expectedCompartmentOCID {
 		t.Fatalf("Expected cfg.CompartmentOCID = %q, got %q", cfg.Auth.CompartmentOCID, expectedCompartmentOCID)
-	}
-}
-
-func TestConfigSetRegion(t *testing.T) {
-	var testCases = []struct {
-		in          string
-		region      string
-		shortRegion string
-		shouldErr   bool
-	}{
-		{"us-phoenix-1", "us-phoenix-1", "phx", false},
-		{"US-PHOENIX-1", "us-phoenix-1", "phx", false},
-		{"phx", "us-phoenix-1", "phx", false},
-		{"PHX", "us-phoenix-1", "phx", false},
-
-		{"us-ashburn-1", "us-ashburn-1", "iad", false},
-		{"US-ASHBURN-1", "us-ashburn-1", "iad", false},
-		{"iad", "us-ashburn-1", "iad", false},
-		{"IAD", "us-ashburn-1", "iad", false},
-
-		{"eu-frankfurt-1", "eu-frankfurt-1", "fra", false},
-		{"EU-FRANKFURT-1", "eu-frankfurt-1", "fra", false},
-		{"fra", "eu-frankfurt-1", "fra", false},
-		{"FRA", "eu-frankfurt-1", "fra", false},
-
-		// error cases
-		{"us-east", "", "", true},
-		{"", "", "", true},
-	}
-
-	for _, tt := range testCases {
-		t.Run(tt.in, func(t *testing.T) {
-			cfg := &Config{}
-			err := cfg.setRegionFields(tt.in)
-			if err != nil {
-				if !tt.shouldErr {
-					t.Errorf("SetRegionFields(%q) unexpected error: %v", tt.in, err)
-				}
-			}
-
-			if cfg.Auth.Region != tt.region {
-				t.Errorf("SetRegionFields(%q) => {Region: %q}; want {Region: %q}", tt.in, cfg.Auth.Region, tt.region)
-			}
-			if cfg.Auth.RegionKey != tt.shortRegion {
-				t.Errorf("SetRegionFields(%q) => {RegionShortName: %q}; want {RegionShortName: %q}", tt.in, cfg.Auth.RegionKey, tt.shortRegion)
-			}
-		})
 	}
 }
 
@@ -121,7 +75,7 @@ func TestValidateConfig(t *testing.T) {
 			},
 			errs: field.ErrorList{},
 		}, {
-			name: "missing_region",
+			name: "allows missing_region",
 			in: &Config{
 				Auth: AuthConfig{
 					RegionKey:       "phx",
@@ -133,11 +87,9 @@ func TestValidateConfig(t *testing.T) {
 					VcnOCID:         "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 				},
 			},
-			errs: field.ErrorList{
-				&field.Error{Type: field.ErrorTypeRequired, Field: "auth.region", BadValue: ""},
-			},
+			errs: field.ErrorList{},
 		}, {
-			name: "missing_region_key",
+			name: "allows missing_region_key",
 			in: &Config{
 				Auth: AuthConfig{
 					Region:          "us-phoenix-1",
@@ -149,9 +101,7 @@ func TestValidateConfig(t *testing.T) {
 					VcnOCID:         "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 				},
 			},
-			errs: field.ErrorList{
-				&field.Error{Type: field.ErrorTypeRequired, Field: "auth.region_key", BadValue: ""},
-			},
+			errs: field.ErrorList{},
 		}, {
 			name: "missing_tenancy_ocid",
 			in: &Config{
@@ -237,32 +187,9 @@ func TestValidateConfig(t *testing.T) {
 			in: &Config{
 				UseInstancePrincipals: true,
 				Auth: AuthConfig{
-					VcnOCID:   "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					RegionKey: "phx",
-				},
+					VcnOCID: "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
 			},
 			errs: field.ErrorList{},
-		}, {
-			name: "mixing instance principals with other auth flags",
-			in: &Config{
-				UseInstancePrincipals: true,
-				Auth: AuthConfig{
-					Region:      "us-phoenix-1",
-					TenancyOCID: "ocid1.tenancy.oc1..aaaaaaaatyn7scrtwtqedvgrxgr2xunzeo6uanvyhzxqblctwkrpisvke4kq",
-					UserOCID:    "ocid1.user.oc1..aaaaaaaai77mql2xerv7cn6wu3nhxang3y4jk56vo5bn5l5lysl34avnui3q",
-					PrivateKey:  "-----BEGIN RSA PRIVATE KEY----- (etc)",
-					Fingerprint: "8c:bf:17:7b:5f:e0:7d:13:75:11:d6:39:0d:e2:84:74",
-					VcnOCID:     "ocid1.user.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-					RegionKey:   "phx",
-				},
-			},
-			errs: field.ErrorList{
-				&field.Error{Type: field.ErrorTypeForbidden, Field: "auth.region", Detail: "cannot be used when useInstancePrincipals is enabled", BadValue: ""},
-				&field.Error{Type: field.ErrorTypeForbidden, Field: "auth.tenancy", Detail: "cannot be used when useInstancePrincipals is enabled", BadValue: ""},
-				&field.Error{Type: field.ErrorTypeForbidden, Field: "auth.user", Detail: "cannot be used when useInstancePrincipals is enabled", BadValue: ""},
-				&field.Error{Type: field.ErrorTypeForbidden, Field: "auth.key", Detail: "cannot be used when useInstancePrincipals is enabled", BadValue: ""},
-				&field.Error{Type: field.ErrorTypeForbidden, Field: "auth.fingerprint", Detail: "cannot be used when useInstancePrincipals is enabled", BadValue: ""},
-			},
 		},
 	}
 

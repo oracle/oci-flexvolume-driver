@@ -17,24 +17,15 @@ package client
 import (
 	"errors"
 	"fmt"
+	"gopkg.in/yaml.v2"
 	"io"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"log"
 	"os"
-	"strings"
-
-	yaml "gopkg.in/yaml.v2"
-	"k8s.io/apimachinery/pkg/util/validation/field"
 
 	"github.com/oracle/oci-flexvolume-driver/pkg/oci/instancemeta"
 )
-
-var ociRegions = map[string]string{
-	"phx": "us-phoenix-1",
-	"iad": "us-ashburn-1",
-	"fra": "eu-frankfurt-1",
-	"lhr": "uk-london-1",
-}
 
 // AuthConfig holds the configuration required for communicating with the OCI
 // API.
@@ -78,10 +69,8 @@ func NewConfig(r io.Reader) (*Config, error) {
 
 	c.metadata = instancemeta.New()
 
-	if !c.UseInstancePrincipals {
-		if err := c.setDefaults(); err != nil {
-			return nil, err
-		}
+	if err := c.setDefaults(); err != nil {
+		return nil, err
 	}
 
 	if err := c.validate(); err != nil {
@@ -103,57 +92,23 @@ func ConfigFromFile(path string) (*Config, error) {
 }
 
 func (c *Config) setDefaults() error {
-	if c.Auth.Region == "" || c.Auth.CompartmentOCID == "" {
-		meta, err := c.metadata.Get()
-		if err != nil {
-			return err
-		}
-
-		if c.Auth.Region == "" {
-			c.Auth.Region = meta.Region
-		}
-		if c.Auth.CompartmentOCID == "" {
-			c.Auth.CompartmentOCID = meta.CompartmentOCID
-		}
-	}
-
-	err := c.setRegionFields(c.Auth.Region)
+	meta, err := c.metadata.Get()
 	if err != nil {
-		return fmt.Errorf("setting config region fields: %v", err)
+		return err
 	}
-
+	if c.Auth.Region == "" {
+		c.Auth.Region = meta.Region
+	}
+	if c.Auth.RegionKey == "" {
+		c.Auth.RegionKey = meta.RegionKey
+	}
+	if c.Auth.CompartmentOCID == "" {
+		c.Auth.CompartmentOCID = meta.CompartmentOCID
+	}
 	if c.Auth.Passphrase == "" && c.Auth.PrivateKeyPassphrase != "" {
 		log.Print("config: auth.key_passphrase is DEPRECIATED and will be removed in a later release. Please set auth.passphrase instead.")
 		c.Auth.Passphrase = c.Auth.PrivateKeyPassphrase
 	}
-
-	return nil
-}
-
-// setRegionFields accepts either a region short name or a region long name and
-// sets both the Region and RegionKey fields.
-func (c *Config) setRegionFields(region string) error {
-	input := region
-	region = strings.ToLower(region)
-
-	var name, key string
-	name, ok := ociRegions[region]
-	if !ok {
-		for key, name = range ociRegions {
-			if name == region {
-				ok = true
-				break
-			}
-		}
-		if !ok {
-			return fmt.Errorf("tried to connect to unsupported OCI region %q", input)
-		}
-	} else {
-		key = region
-	}
-
-	c.Auth.Region = name
-	c.Auth.RegionKey = key
 
 	return nil
 }
@@ -166,49 +121,24 @@ func (c *Config) validate() error {
 func validateAuthConfig(c *Config, fldPath *field.Path) field.ErrorList {
 	errList := field.ErrorList{}
 
-	if c.UseInstancePrincipals {
-		if c.Auth.Region != "" {
-			errList = append(errList, field.Forbidden(fldPath.Child("region"), "cannot be used when useInstancePrincipals is enabled"))
-		}
-		if c.Auth.CompartmentOCID != "" {
-			errList = append(errList, field.Forbidden(fldPath.Child("compartment"), "cannot be used when useInstancePrincipals is enabled"))
-		}
-		if c.Auth.TenancyOCID != "" {
-			errList = append(errList, field.Forbidden(fldPath.Child("tenancy"), "cannot be used when useInstancePrincipals is enabled"))
-		}
-		if c.Auth.UserOCID != "" {
-			errList = append(errList, field.Forbidden(fldPath.Child("user"), "cannot be used when useInstancePrincipals is enabled"))
-		}
-		if c.Auth.PrivateKey != "" {
-			errList = append(errList, field.Forbidden(fldPath.Child("key"), "cannot be used when useInstancePrincipals is enabled"))
-		}
-		if c.Auth.Fingerprint != "" {
-			errList = append(errList, field.Forbidden(fldPath.Child("fingerprint"), "cannot be used when useInstancePrincipals is enabled"))
-		}
-	} else {
-		if c.Auth.Region == "" {
-			errList = append(errList, field.Required(fldPath.Child("region"), ""))
-		}
-		if c.Auth.TenancyOCID == "" {
-			errList = append(errList, field.Required(fldPath.Child("tenancy"), ""))
-		}
-		if c.Auth.UserOCID == "" {
-			errList = append(errList, field.Required(fldPath.Child("user"), ""))
-		}
-		if c.Auth.PrivateKey == "" {
-			errList = append(errList, field.Required(fldPath.Child("key"), ""))
-		}
-		if c.Auth.Fingerprint == "" {
-			errList = append(errList, field.Required(fldPath.Child("fingerprint"), ""))
-		}
-	}
-
-	if c.Auth.RegionKey == "" {
-		errList = append(errList, field.Required(fldPath.Child("region_key"), ""))
-	}
-
 	if c.Auth.VcnOCID == "" {
 		errList = append(errList, field.Required(fldPath.Child("vcn"), ""))
+	}
+	checkFields := map[string]string{"tenancy": c.Auth.TenancyOCID,
+		"user":        c.Auth.UserOCID,
+		"key":         c.Auth.PrivateKey,
+		"fingerprint": c.Auth.Fingerprint}
+
+	for fieldName, fieldValue := range checkFields {
+		if fieldValue == "" {
+			if !c.UseInstancePrincipals {
+				errList = append(errList, field.Required(fldPath.Child(fieldName), ""))
+			}
+		} else {
+			if c.UseInstancePrincipals {
+				log.Printf("config: Instance principal authentication is enabled. Note the %s field will be ignored", fldPath.Child(fieldName))
+			}
+		}
 	}
 
 	return errList

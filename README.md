@@ -89,11 +89,13 @@ applied to the dynamic group of instances that intend to use the flexvolume driv
 "Allow group id ${oci_identity_group.flexvolume_driver_group.id} to manage volume-attachments in compartment id ${var.compartment_ocid}",
 ```
 
-The configuration file requires a simple configuration in the following format:
+The configuration file for authentication with instance principals requires much less configuration:
 
 ```yaml
 ---
 useInstancePrincipals: true
+auth:
+  vcn: ocid1.vcn.oc1.phx.aaaaaaaaqiqmei4yen2fuyqaiqfcejpguqs6tuaf2n2iaxiwf5cfji2s636a
 ```
 
 #### Extra configuration values
