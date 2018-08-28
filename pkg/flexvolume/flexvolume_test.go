@@ -42,30 +42,6 @@ func TestInit(t *testing.T) {
 	}
 }
 
-// TestVolumeName tests that the getvolumename call-out results in
-// StatusNotSupported as the call-out is broken as of the latest stable Kube
-// release (1.6.4).
-func TestGetVolumeName(t *testing.T) {
-	bak := out
-	out = new(bytes.Buffer)
-	defer func() { out = bak }()
-
-	code := 0
-	osexit := exit
-	exit = func(c int) { code = c }
-	defer func() { exit = osexit }()
-
-	ExecDriver(mockFlexvolumeDriver{}, []string{"oci", "getvolumename", defaultTestOps})
-
-	if out.(*bytes.Buffer).String() != `{"status":"Not supported","message":"getvolumename is broken as of kube 1.6.4"}`+"\n" {
-		t.Fatalf(`Expected '{"status":"Not supported","message":"getvolumename is broken as of kube 1.6.4"}}'; got %s`, out.(*bytes.Buffer).String())
-	}
-
-	if code != 0 {
-		t.Fatalf("Expected 'exit 0'; got 'exit %d'", code)
-	}
-}
-
 func TestAttachUnsuported(t *testing.T) {
 	bak := out
 	out = new(bytes.Buffer)

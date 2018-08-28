@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"syscall"
 
 	"github.com/oracle/oci-flexvolume-driver/pkg/flexvolume"
 	"github.com/oracle/oci-flexvolume-driver/pkg/oci/driver"
@@ -37,6 +38,7 @@ func GetLogPath() string {
 }
 
 func main() {
+	syscall.Umask(0)
 	// TODO: Maybe use sirupsen/logrus?
 	f, err := os.OpenFile(GetLogPath(), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {

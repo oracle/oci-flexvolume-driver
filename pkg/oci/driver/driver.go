@@ -16,15 +16,18 @@ package driver
 
 import (
 	"fmt"
+	"github.com/pkg/errors"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/oracle/oci-flexvolume-driver/pkg/flexvolume"
 	"github.com/oracle/oci-flexvolume-driver/pkg/iscsi"
 	"github.com/oracle/oci-flexvolume-driver/pkg/oci/client"
-
 	"github.com/oracle/oci-go-sdk/core"
 )
 
@@ -36,7 +39,9 @@ const (
 )
 
 // OCIFlexvolumeDriver implements the flexvolume.Driver interface for OCI.
-type OCIFlexvolumeDriver struct{}
+type OCIFlexvolumeDriver struct {
+	Capabilities *flexvolume.Capabilities
+}
 
 // GetDriverDirectory gets the ath for the flexvolume driver either from the
 // env or default.
@@ -59,6 +64,51 @@ func GetConfigPath() string {
 	return filepath.Join(GetDriverDirectory(), "config.yaml")
 }
 
+// Called during init to set the capabilities of this driver
+func (d *OCIFlexvolumeDriver) setCapabilities() error {
+	defer func() { log.Printf("Driver Capabilities: %q", d.Capabilities.Describe()) }()
+	kubeconfig := filepath.Join(os.Getenv("HOME"), ".kube", "config")
+	if _, err := os.Stat(kubeconfig); os.IsNotExist(err) {
+		const kubeletConfigPath = "/etc/kubernetes/kubelet.conf"
+		log.Printf("Could not find kube config in home directory, checking %s", kubeletConfigPath)
+		if _, err := os.Stat(kubeletConfigPath); os.IsNotExist(err) {
+			log.Printf("Could not find kubelet config in %s, so we were not able to determine certain capabilities", kubeletConfigPath)
+			d.Capabilities = &flexvolume.Capabilities{
+				CanGetVolumeName: false,
+				CanAttach:        true,
+			}
+			return nil
+		}
+		kubeconfig = kubeletConfigPath
+	}
+
+	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	if err != nil {
+		return err
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return err
+	}
+	serverVersion, err := clientset.Discovery().ServerVersion()
+	if err != nil {
+		return err
+	}
+	major, err := strconv.Atoi(serverVersion.Major)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Problem parsing server version [major part %s]", serverVersion.Major))
+	}
+	minor, err := strconv.Atoi(serverVersion.Minor)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("Problem parsing server version [minor part %s]", serverVersion.Minor))
+	}
+	d.Capabilities = &flexvolume.Capabilities{
+		CanGetVolumeName: minor >= 8 && major >= 1,
+		CanAttach:        true,
+	}
+	return nil
+}
+
 // Init checks that we have the appropriate credentials and metadata API access
 // on driver initialisation.
 func (d OCIFlexvolumeDriver) Init() flexvolume.DriverStatus {
@@ -71,8 +121,14 @@ func (d OCIFlexvolumeDriver) Init() flexvolume.DriverStatus {
 	} else {
 		log.Printf("Config file %q does not exist. Assuming worker node.", path)
 	}
-
-	return flexvolume.Succeed()
+	err := d.setCapabilities()
+	if err != nil {
+		return flexvolume.Fail(err)
+	}
+	return flexvolume.DriverStatus{
+		Status:       flexvolume.StatusSuccess,
+		Capabilities: d.Capabilities,
+	}
 }
 
 // deriveVolumeOCID will figure out the correct OCID for a volume
@@ -92,6 +148,22 @@ func deriveVolumeOCID(regionKey string, volumeName string) string {
 	}
 
 	return volumeOCID
+}
+
+// Will return the name of the volume being operated on
+func (d OCIFlexvolumeDriver) GetVolumeName(opts flexvolume.Options) flexvolume.DriverStatus {
+	if !d.Capabilities.CanGetVolumeName {
+		return flexvolume.NotSupported("getvolumename is not supported for your running version of Kubernetes")
+	}
+	c, err := client.New(GetConfigPath())
+	if err != nil {
+		return flexvolume.Fail(err)
+	}
+	volumeOCID := deriveVolumeOCID(c.GetConfig().Auth.RegionKey, opts["kubernetes.io/pvOrVolumeName"])
+	return flexvolume.DriverStatus{
+		Status:     flexvolume.StatusSuccess,
+		VolumeName: volumeOCID,
+	}
 }
 
 // Attach initiates the attachment of the given OCI volume to the k8s worker

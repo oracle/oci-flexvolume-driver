@@ -41,6 +41,23 @@ const (
 	StatusNotSupported Status = "Not supported"
 )
 
+
+type Capabilities struct {
+	// There is a bug in 1.6 that does not allow correct usage of getvolumename. If this is set, we can use it
+	CanGetVolumeName bool `json:"cangetvolumename,omitempty"`
+	// Lets k8 know if attach/detach is supported in this driver
+	CanAttach bool `json:"attach,omitempty"`
+}
+
+func (c *Capabilities) Describe() string {
+	output, err := json.Marshal(c)
+	if err != nil {
+		return "Problem describing capabilites of driver"
+	}
+	return string(output)
+}
+
+
 // DriverStatus of a Flexvolume driver call.
 type DriverStatus struct {
 	// Status of the callout. One of "Success", "Failure" or "Not supported".
@@ -52,6 +69,10 @@ type DriverStatus struct {
 	Device string `json:"device,omitempty"`
 	// Represents volume is attached on the node.
 	Attached bool `json:"attached,omitempty"`
+	// Name of the volume. This field is valid only for getvolumename calls.
+	VolumeName string `json:"volumeName,omitempty"`
+	// Capabilities of this driver. Only applicable during init call.
+	Capabilities *Capabilities `json:"capabilities,omitempty"`
 }
 
 // Option keys
@@ -80,6 +101,7 @@ type Driver interface {
 	UnmountDevice(mountDevice string) DriverStatus
 	Mount(mountDir string, opts Options) DriverStatus
 	Unmount(mountDir string) DriverStatus
+	GetVolumeName(opts Options) DriverStatus
 }
 
 // ExitWithResult outputs the given Result and exits with the appropriate exit
@@ -156,12 +178,17 @@ func ExecDriver(driver Driver, args []string) {
 		ExitWithResult(driver.Init())
 
 	// <driver executable> getvolumename <json options>
-	// Currently broken as of lates kube release (1.6.4). Work around hardcodes
-	// exiting with StatusNotSupported.
-	// TODO(apryde): Investigate current situation and version support
-	// requirements.
 	case "getvolumename":
-		ExitWithResult(NotSupported("getvolumename is broken as of kube 1.6.4"))
+		if len(args) != 3 {
+			ExitWithResult(Fail("getvolumename expected exactly 3 arguments; got ", args))
+		}
+
+		opts, err := processOpts(args[2])
+		if err != nil {
+			ExitWithResult(Fail(err))
+		}
+
+		ExitWithResult(driver.GetVolumeName(opts))
 
 	// <driver executable> attach <json options> <node name>
 	case "attach":
