@@ -20,6 +20,10 @@ func (driver mockFlexvolumeDriver) Init() DriverStatus {
 	return Succeed()
 }
 
+func (driver mockFlexvolumeDriver) GetVolumeName(opts Options) DriverStatus {
+	return Succeed()
+}
+
 func (driver mockFlexvolumeDriver) Attach(opts Options, nodeName string) DriverStatus {
 	return NotSupported()
 }
