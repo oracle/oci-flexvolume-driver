@@ -19,6 +19,7 @@ import atexit
 import datetime
 import json
 import os
+from os.path import dirname
 import re
 import select
 from shutil import copyfile
@@ -450,30 +451,104 @@ def canary_metric_date():
 def init_canary_metrics():
     if "METRICS_FILE" in os.environ:
         _log("generating metrics file...")
+        metrics_file_path = os.environ.get("METRICS_FILE")
+        metrics_dir_path = dirname(metrics_file_path)
+        if not os.path.exists(metrics_dir_path):
+            os.makedirs(metrics_dir_path)
         canary_metrics = {}
         canary_metrics["start_time"] = canary_metric_date()
         canary_metrics[CM_SIMPLE] = 0
-        with open(os.environ.get("METRICS_FILE"), 'w') as metrics_file:
+        with open(metrics_file_path, 'w') as metrics_file:
             json.dump(canary_metrics, metrics_file, sort_keys=True, indent=4)
 
 def update_canary_metric(name, result):
     if "METRICS_FILE" in os.environ:
         _log("updating metrics fle...")
-        with open(os.environ.get("METRICS_FILE"), 'r') as metrics_file:
+        metrics_file_path = os.environ.get("METRICS_FILE")
+        with open(metrics_file_path, 'r') as metrics_file:
             canary_metrics = json.load(metrics_file)
             canary_metrics[name] = result
-        with open(os.environ.get("METRICS_FILE"), 'w') as metrics_file:
+        with open(metrics_file_path, 'w') as metrics_file:
             json.dump(canary_metrics, metrics_file, sort_keys=True, indent=4)
 
 def finish_canary_metrics():
    update_canary_metric("end_time", canary_metric_date())
 
 
+# Run Modes *******************************************************************
+# 
+
+def _run_once(replication_controller, test_id, destructive):
+    _log("Running system test: ", as_banner=True)
+
+    init_canary_metrics() 
+
+    _log("Starting the replication controller (creates a single nginx pod).")
+    _kubectl("delete -f " + replication_controller, exit_on_error=False, display_errors=False)
+    _kubectl("create -f " + replication_controller)
+
+    _log("Waiting for the pod to start.")
+    (podname1, _, node1) = _wait_for_pod_status("Running", test_id)
+
+    _log("Writing a file to the flexvolume mounted in the pod.")
+    _kubectl("exec " + podname1 + " -- touch /usr/share/nginx/html/hello.txt")
+
+    _log("Does the new file exist?")
+    stdout = _kubectl("exec " + podname1 + " -- ls /usr/share/nginx/html")
+    if "hello.txt" not in stdout.split("\n"):
+        _log("Error: Failed to find file hello.txt in mounted volume")
+        _finish_with_exit_code(1)
+    _log("Yes it does!")
+
+    if destructive:
+        _log("Marking the current node as unschedulable.")
+        _kubectl("cordon " + node1)
+
+    _log("Deleting the pod. This should cause it to be restarted (possibly on another node).")
+    _kubectl("delete pod " + podname1)
+
+    _log("Waiting for the pod to start (possibly on the other node).")
+    (podname2, _, node2) = _wait_for_pod_status("Running", test_id)
+
+    if destructive:
+        if node1 == node2:
+            _log("Error: Pod failed to appear on the other node after being deleted/restarted.")
+            _finish_with_exit_code(1)
+
+    _log("Does the new file still exist?")
+    stdout = _kubectl("exec " + podname2 + " -- ls /usr/share/nginx/html")
+    if "hello.txt" not in stdout.split("\n"):
+        _log("Error: Failed to find file hello.txt in mounted volume")
+        _finish_with_exit_code(1)
+    _log("Yes it does!")
+
+    _log("Deleteing the replication controller (deletes the single nginx pod).")
+    _kubectl("delete -f " + replication_controller)
+
+    if destructive:
+        _log("Adding the original node back into the cluster.")
+        _kubectl("uncordon " + node1)
+
+    update_canary_metric(CM_SIMPLE, 1)
+
+
+def _monitor(replication_controller, test_id, metrics_file, monitor_period):
+    wait_in_seconds = 30 
+    if monitor_period is None or "":
+        try:
+            wait_in_seconds = int(monitor_period)
+        except:
+           _log("Invalid MONITOR_PERIOD: '" + monitor_period +"'. Using default: " + str(wait_in_seconds)) 
+    while True:
+        _run_once(replication_controller, test_id, True)
+        _log("Waiting " + wait_in_seconds + " seconds.")
+        time.sleep(wait_in_seconds)
+
+
 # Main ************************************************************************
 # 
 
-def _main():
-    _reset_debug_file()
+def _handle_args():
     parser = argparse.ArgumentParser(description='System test runner for the OCI Block Volume flexvolume driver')
     parser.add_argument('--cluster-check',
                         help='Enable the check that tests if the cluster has the correct shape to run this test',
@@ -507,7 +582,35 @@ def _main():
                         help='If we are creating the test volume, then dont destroy it',
                         action='store_true',
                         default=False)
-    args = vars(parser.parse_args())
+    # Alternatively specify environment variable: 'CANARY_MODE'.
+    parser.add_argument('--canary-mode',
+                        help='The canary mode. "monitor" for infinite runs. "run-once" for single test.',
+                        action='store',
+                        default="monitor")
+    # Alternatively specify environment variable: 'METRICS_FILE'.
+    parser.add_argument('--metrics-file',
+                        help='The local file path of the metric result file.',
+                        action='store',
+                        default="/tmp/metrics.json")
+    # Alternatively specify environment variable: 'MONITOR_PERIOD'.
+    parser.add_argument('--monitor-period',
+                        help='If "monitor" mode is specified. This defines the period to wait between each run in seconds.',
+                        action='store',
+                        default="30")
+    
+    args = vars(parser.parse_args()) 
+    os.environ["CANARY_MODE"] = args['canary_mode']
+    os.environ["METRICS_FILE"] = args['metrics_file']
+    _log("metrics: " + os.environ["METRICS_FILE"])
+    os.environ["MONITOR_PERIOD"] = args['monitor_period']
+
+    return args
+
+
+def _main():
+    _reset_debug_file()
+
+    args = _handle_args()
 
     _check_env(args)
     _create_key_files()
@@ -556,57 +659,11 @@ def _main():
         _install_driver()
 
     if not args['no_test']:
-        _log("Running system test: ", as_banner=True)
+        if args['canary_mode'] == "monitor":
+            _monitor(replication_controller, test_id, args['metrics_file'], args['monitor_period']) 
+        else:
+            _run_once(replication_controller, test_id, args['destructive'])
 
-        init_canary_metrics() 
-
-        _log("Starting the replication controller (creates a single nginx pod).")
-        _kubectl("delete -f " + replication_controller, exit_on_error=False, display_errors=False)
-        _kubectl("create -f " + replication_controller)
-
-        _log("Waiting for the pod to start.")
-        (podname1, _, node1) = _wait_for_pod_status("Running", test_id)
-
-        _log("Writing a file to the flexvolume mounted in the pod.")
-        _kubectl("exec " + podname1 + " -- touch /usr/share/nginx/html/hello.txt")
-
-        _log("Does the new file exist?")
-        stdout = _kubectl("exec " + podname1 + " -- ls /usr/share/nginx/html")
-        if "hello.txt" not in stdout.split("\n"):
-            _log("Error: Failed to find file hello.txt in mounted volume")
-            _finish_with_exit_code(1)
-        _log("Yes it does!")
-
-        if args['destructive']:
-            _log("Marking the current node as unschedulable.")
-            _kubectl("cordon " + node1)
-
-        _log("Deleting the pod. This should cause it to be restarted (possibly on another node).")
-        _kubectl("delete pod " + podname1)
-
-        _log("Waiting for the pod to start (possibly on the other node).")
-        (podname2, _, node2) = _wait_for_pod_status("Running", test_id)
-
-        if args['destructive']:
-            if node1 == node2:
-                _log("Error: Pod failed to appear on the other node after being deleted/restarted.")
-                _finish_with_exit_code(1)
-
-        _log("Does the new file still exist?")
-        stdout = _kubectl("exec " + podname2 + " -- ls /usr/share/nginx/html")
-        if "hello.txt" not in stdout.split("\n"):
-            _log("Error: Failed to find file hello.txt in mounted volume")
-            _finish_with_exit_code(1)
-        _log("Yes it does!")
-
-        _log("Deleteing the replication controller (deletes the single nginx pod).")
-        _kubectl("delete -f " + replication_controller)
-
-        if args['destructive']:
-            _log("Adding the original node back into the cluster.")
-            _kubectl("uncordon " + node1)
-
-        update_canary_metric(CM_SIMPLE, 1)
     
     _finish_with_exit_code(0)
 

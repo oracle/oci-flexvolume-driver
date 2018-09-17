@@ -53,6 +53,12 @@ system-test:
       code: |
         export VERSION=$(cat VERSION.txt)
         echo "Pushing test version ${VERSION}"
+        export CANARY_MODE="run-once"
+        echo "Canary mode ${CANARY_MODE}"
+        export METRICS_FILE="/tmp/output.json"
+        echo "Canary mode ${METRICS_FILE}"
+        export MONITOR_PERIOD="30"
+        echo "Canary monitor period ${MONITOR_PERIOD} seconds"
 
     - script:
       name: prepare
