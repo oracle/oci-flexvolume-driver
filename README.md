@@ -16,22 +16,15 @@ installed on every node in your Kubernetes cluster.
 
 ### Kubernetes DaemonSet Installer
 
-The recommended way to install the driver is through the daemonset installer mechanism. This will create two daemonsets, one specifically for master nodes, allowing configuration via a Kubernetes Secret, and one for worker nodes.
+The recommended way to install the driver is through the DaemonSet installer mechanism. This will create two daemonsets, one specifically for master nodes, allowing configuration via a Kubernetes Secret, and one for worker nodes.
 
 ```
+kubectl apply -f https://github.com/oracle/oci-flexvolume-driver/releases/download/${flexvolume_driver_version}/rbac.yaml
+
 kubectl apply -f https://github.com/oracle/oci-flexvolume-driver/releases/download/${flexvolume_driver_version}/oci-flexvolume-driver.yaml
 ```
 
-You'll still need to add the config file manually or as a kubernetes secret.
-
-### Manually
-
-The driver should be installed in the volume plugin path on **every**
-node in your Kubernetes cluster at the following location:
-`/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci/oci`.
-
-NOTE: If running kube-controller-managers in a container you _must_ ensure that
-the plugin directory is mounted into the container.
+You'll still need to add the config file as a Kubernetes Secret.
 
 #### Configuration
 
@@ -95,6 +88,19 @@ The configuration file requires a simple configuration in the following format:
 ---
 useInstancePrincipals: true
 ```
+
+#### Driver Kubernetes API Access
+
+The driver needs to get node information from the Kubernetes API server. A kubeconfig file with appropriate permissions (rbac: nodes/get) needs
+to be provided in the same manor as the OCI auth config file above.
+
+```
+kubectl create secret generic oci-flexvolume-driver-kubeconfig \
+    -n kube-system \
+    --from-file=kubeconfig=kubeconfig
+```
+
+Once the Secret is set and the DaemonSet deployed, the kubeconfig file will be placed onto the master nodes.
 
 #### Extra configuration values
 

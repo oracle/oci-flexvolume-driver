@@ -18,12 +18,11 @@ import (
 	"testing"
 
 	"github.com/oracle/oci-flexvolume-driver/pkg/flexvolume"
-	"github.com/oracle/oci-flexvolume-driver/pkg/oci/driver"
 )
 
 // TestAttachNonexistentVolume tests that attach fails for invalid volume OCIDs.
 func TestAttachNonexistentVolume(t *testing.T) {
-	d := &driver.OCIFlexvolumeDriver{}
+	d := fw.NewDriver()
 	opts := flexvolume.Options{
 		"kubernetes.io/fsType":         "ext4",
 		"kubernetes.io/pvOrVolumeName": "non-existent-volume",

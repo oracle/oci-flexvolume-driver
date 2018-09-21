@@ -50,5 +50,11 @@ func main() {
 	log.SetOutput(f)
 
 	log.Printf("OCI FlexVolume Driver version: %s (%s)", version, build)
-	flexvolume.ExecDriver(&driver.OCIFlexvolumeDriver{}, os.Args)
+	d, err := driver.NewOCIFlexvolumeDriver()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error creating new driver: %v", err)
+		log.Printf("error creating new driver: %v", err)
+		os.Exit(1)
+	}
+	flexvolume.ExecDriver(d, os.Args)
 }

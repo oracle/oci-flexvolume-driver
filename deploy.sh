@@ -25,9 +25,13 @@ driver_dir="/flexmnt/$VENDOR${VENDOR:+"~"}${DRIVER}"
 LOG_FILE="$driver_dir/oci_flexvolume_driver.log"
 
 config_file_name="config.yaml"
+kubeconfig_file_name="kubeconfig"
 config_tmp_dir="/tmp"
+kubeconfig_tmp_dir="/tmp2"
 
 CONFIG_FILE="$config_tmp_dir/$config_file_name"
+
+KUBECONFIG_FILE="$kubeconfig_tmp_dir/$kubeconfig_file_name"
 
 if [ ! -d "$driver_dir" ]; then
   mkdir "$driver_dir"
@@ -38,6 +42,10 @@ mv -f "$driver_dir/.$DRIVER" "$driver_dir/$DRIVER"
 
 if [ -f "$CONFIG_FILE" ]; then
   cp  "$CONFIG_FILE"  "$driver_dir/$config_file_name"
+fi
+
+if [ -f "$KUBECONFIG_FILE" ]; then
+  cp  "$KUBECONFIG_FILE"  "$driver_dir/$kubeconfig_file_name"
 fi
 
 while : ; do

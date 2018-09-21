@@ -17,12 +17,18 @@ package framework
 import (
 	"errors"
 	"os"
+
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes/fake"
+
+	"github.com/oracle/oci-flexvolume-driver/pkg/oci/driver"
 )
 
 // Framework used to help with integration testing.
 type Framework struct {
 	VolumeName string
 	NodeName   string
+	NodeOCID   string
 }
 
 // New testing framework.
@@ -35,13 +41,32 @@ func New() *Framework {
 	return &Framework{
 		VolumeName: os.Getenv("VOLUME_NAME"),
 		NodeName:   hostname,
+		NodeOCID:   os.Getenv("NODE_OCID"),
 	}
+}
+
+// NewDriver creates a new driver with a fake kubeclient
+func (f *Framework) NewDriver() *driver.OCIFlexvolumeDriver {
+	n := v1.Node{}
+	n.Name = f.NodeName
+	n.Spec.ProviderID = f.NodeOCID
+
+	nl := new(v1.NodeList)
+	nl.Items = []v1.Node{n}
+
+	d := &driver.OCIFlexvolumeDriver{
+		K: fake.NewSimpleClientset(nl),
+	}
+	return d
 }
 
 // Init the framework.
 func (f *Framework) Init() error {
 	if f.VolumeName == "" {
 		return errors.New("VOLUME_NAME env var unset")
+	}
+	if f.NodeOCID == "" {
+		return errors.New("NODE_OCID env var unset")
 	}
 	return nil
 }

@@ -17,7 +17,7 @@ variable subnet_ocid {
 # Gets the OCID of the OS image to use
 data "oci_core_images" "os_image_ocid" {
   compartment_id = "${var.compartment_ocid}"
-  display_name   = "Oracle-Linux-7.5-2018.05.09-1"
+  display_name   = "Oracle-Linux-7.5-2018.08.14-0"
 }
 
 resource "oci_core_instance" "instance" {
@@ -92,4 +92,8 @@ resource null_resource "instance" {
 
 output "instance_public_ip" {
   value = "${data.oci_core_vnic.instance_vnic.public_ip_address}"
+}
+
+output "instance_ocid" {
+  value = "${oci_core_instance.instance.id}"
 }

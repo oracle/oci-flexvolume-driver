@@ -1,3 +1,9 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: oci-flexvolume-driver
+---
 apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
@@ -10,6 +16,7 @@ spec:
       labels:
         app: oci-flexvolume-driver
     spec:
+      serviceAccountName: oci-flexvolume-driver
       nodeSelector:
         node-role.kubernetes.io/master: ""
       tolerations:
@@ -31,6 +38,9 @@ spec:
             - mountPath: /tmp
               name: config
               readOnly: true
+            - mountPath: /tmp2
+              name: kubeconfig
+              readOnly: true
       volumes:
         - name: flexvolume-mount
           hostPath:
@@ -39,6 +49,9 @@ spec:
         - name: config
           secret:
             secretName: oci-flexvolume-driver
+        - name: kubeconfig
+          secret:
+            secretName: oci-flexvolume-driver-kubeconfig
 ---
 apiVersion: extensions/v1beta1
 kind: DaemonSet
