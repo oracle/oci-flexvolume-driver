@@ -17,6 +17,7 @@
 import argparse
 import atexit
 import datetime
+import glob
 import json
 import os
 import re
@@ -35,6 +36,7 @@ TMP_INSTANCE_KEY = "/tmp/instance_key"
 DEBUG_FILE = "runner.log"
 DRIVER_DIR = "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci"
 TERRAFORM_DIR = "terraform"
+RC_CONTROLLER_YAML="replication-controller-with-volume-claim.yaml"
 TIMEOUT = 180
 LOCKFILE = "/tmp/system-test-lock-file"
 MAX_NUM_LOCKFILE_RETRIES = 100
@@ -49,11 +51,17 @@ WRITE_REPORT=True
 REPORT_DIR_PATH="/tmp/results"
 REPORT_FILE="done"
 
+
+# Clean test resources.
+def _clean():
+    # Clean replication controller support files.
+    for f in glob.glob(RC_CONTROLLER_YAML + ".[0123456789abcdef]*"):
+        os.remove(f)
+
 # On exit return 0 for success or any other integer for a failure.
 # If write_report is true then write a completion file to the Sonabuoy plugin result file.
 # The default location is: /tmp/results/done
 def _finish_with_exit_code(exit_code, write_report=True, report_dir_path=REPORT_DIR_PATH, report_file=REPORT_FILE):
-    print "finishing with exit code: " + str(exit_code)
     if write_report:
         if not os.path.exists(report_dir_path):
             os.makedirs(report_dir_path)
@@ -66,7 +74,14 @@ def _finish_with_exit_code(exit_code, write_report=True, report_dir_path=REPORT_
         with open(report_dir_path + "/" + report_file, "w+") as file: 
             file.write(str(report_dir_path + "/" + DEBUG_FILE))
     finish_canary_metrics()
-    sys.exit(exit_code)           
+    if "CANARY_MODE" in os.environ and os.environ["CANARY_MODE"] == "run_once":
+        # In 'run_once' mode we exit on completion.
+        sys.exit(exit_code)           
+        print "finished with exit code: " + str(exit_code)
+    # Clean resources.
+    _clean()
+        
+
 
 def _check_env(args):
     should_exit = False
@@ -472,8 +487,7 @@ def finish_canary_metrics():
 # Main ************************************************************************
 # 
 
-def _main():
-    _reset_debug_file()
+def parse_args():
     parser = argparse.ArgumentParser(description='System test runner for the OCI Block Volume flexvolume driver')
     parser.add_argument('--cluster-check',
                         help='Enable the check that tests if the cluster has the correct shape to run this test',
@@ -507,7 +521,12 @@ def _main():
                         help='If we are creating the test volume, then dont destroy it',
                         action='store_true',
                         default=False)
-    args = vars(parser.parse_args())
+    return vars(parser.parse_args())
+
+
+def _run_once():
+    _reset_debug_file()
+    args = parse_args() 
 
     _check_env(args)
     _create_key_files()
@@ -609,6 +628,27 @@ def _main():
         update_canary_metric(CM_SIMPLE, 1)
     
     _finish_with_exit_code(0)
+
+def _run_monitor():
+    print "Running canary!"
+    wait_in_seconds = 30
+    if "MONITOR_PERIOD" in os.environ:
+        wait_in_seconds = int(os.environ["MONITOR_PERIOD"])
+    _log("Monitor wait period is " + str(wait_in_seconds) + " seconds.") 
+    while True:
+        _run_once()
+        _log("Waiting " + str(wait_in_seconds) + " seconds before next test.") 
+        time.sleep(wait_in_seconds)
+
+
+def _main():
+    if "CANARY_MODE" in os.environ and os.environ["CANARY_MODE"] == "run_once":
+        # The CI should be configured with CANARY_MODE set to 'run_once' so that 
+        # it completes and does not run forever.
+        _run_once()
+    else:
+        # By default we run in monitor mode.
+        _run_monitor()
 
 
 if __name__ == "__main__":
