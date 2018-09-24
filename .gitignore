@@ -1,5 +1,6 @@
 # Ignore env
 wercker.env
+env.sh
 
 # Ignore keys
 *.pem
