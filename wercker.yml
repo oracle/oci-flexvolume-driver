@@ -87,8 +87,6 @@ validate-test-image:
       code: |
         export VERSION=$(cat VERSION.txt)
         echo "Test image version ${VERSION}"
-        export CANARY_MODE="run_once"
-        export MONITOR_PERIOD="30"
 
     - script:
         name: validate test image
