@@ -54,7 +54,6 @@ system-test:
         export VERSION=$(cat VERSION.txt)
         echo "Pushing test version ${VERSION}"
         export CANARY_MODE="run_once"
-        export MONITOR_PERIOD="30"
 
     - script:
       name: prepare
@@ -88,7 +87,6 @@ validate-test-image:
         export VERSION=$(cat VERSION.txt)
         echo "Test image version ${VERSION}"
         export CANARY_MODE="run_once"
-        export MONITOR_PERIOD="30"
 
     - script:
         name: validate test image

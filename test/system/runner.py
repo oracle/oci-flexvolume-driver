@@ -51,7 +51,6 @@ WRITE_REPORT=True
 REPORT_DIR_PATH="/tmp/results"
 REPORT_FILE="done"
 
-
 # Clean test resources.
 def _clean():
     # Clean replication controller support files.
@@ -80,7 +79,6 @@ def _finish_with_exit_code(exit_code, write_report=True, report_dir_path=REPORT_
         print "finished with exit code: " + str(exit_code)
     # Clean resources.
     _clean()
-        
 
 
 def _check_env(args):
@@ -649,7 +647,6 @@ def _main():
     else:
         # By default we run in monitor mode.
         _run_monitor()
-
 
 if __name__ == "__main__":
     _main()
