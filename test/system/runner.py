@@ -75,8 +75,8 @@ def _finish_with_exit_code(exit_code, write_report=True, report_dir_path=REPORT_
     finish_canary_metrics()
     if "CANARY_MODE" in os.environ and os.environ["CANARY_MODE"] == "run_once":
         # In 'run_once' mode we exit on completion.
+        print("finished with exit code: %d" % exit_code)
         sys.exit(exit_code)           
-        print "finished with exit code: " + str(exit_code)
     # Clean resources.
     _clean()
 
@@ -635,7 +635,7 @@ def _run_monitor():
     _log("Monitor wait period is " + str(wait_in_seconds) + " seconds.") 
     while True:
         _run_once()
-        _log("Waiting " + str(wait_in_seconds) + " seconds before next test.") 
+        _log("Waiting %d seconds before next test." % wait_in_seconds)
         time.sleep(wait_in_seconds)
 
 
