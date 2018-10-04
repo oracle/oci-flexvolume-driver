@@ -35,4 +35,7 @@ spec:
   containers:
   - name: flexvolume-driver-system-test
     image: iad.ocir.io/{{DOCKER_REGISTRY_USERNAME}}/oci-flexvolume-driver-test:{{VERSION}}
+    env:
+    - name: CANARY_MODE
+      value: "run_once"
   restartPolicy: Never
