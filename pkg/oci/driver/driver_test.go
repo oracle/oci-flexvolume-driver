@@ -78,3 +78,49 @@ func TestGetConfigPath(t *testing.T) {
 
 	}
 }
+
+func TestGetKubeconfigPath(t *testing.T) {
+	testCases := map[string]struct {
+		envvar   string
+		value    string
+		expected string
+	}{
+		"default": {
+			envvar:   "",
+			value:    "",
+			expected: "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci/kubeconfig",
+		},
+		"custom config dir": {
+			envvar:   "OCI_FLEXD_CONFIG_DIRECTORY",
+			value:    "/foo/bar",
+			expected: "/foo/bar/kubeconfig",
+		},
+		"custom config dir with trailing path seperator": {
+			envvar:   "OCI_FLEXD_CONFIG_DIRECTORY",
+			value:    "/foo/bar/",
+			expected: "/foo/bar/kubeconfig",
+		},
+		"override kubeconfig path": {
+			envvar:   "OCI_FLEXD_KUBECONFIG_PATH",
+			value:    "/etc/kubevar/kubeconfig",
+			expected: "/etc/kubevar/kubeconfig",
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			// idk if we need this but figure it can't hurt
+			original := os.Getenv(tc.envvar)
+			defer os.Setenv(tc.envvar, original)
+
+			// set env var value for the test.
+			os.Setenv(tc.envvar, tc.value)
+
+			result := GetKubeconfigPath()
+			if result != tc.expected {
+				t.Errorf("GetKubeconfigPath() = %q ; wanted %q", result, tc.expected)
+			}
+		})
+
+	}
+}

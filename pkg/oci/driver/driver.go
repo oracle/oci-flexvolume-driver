@@ -96,6 +96,18 @@ func GetConfigPath() string {
 	return filepath.Join(path, "config.yaml")
 }
 
+// GetKubeconfigPath gets the override path of the 'kubeconfig'. This override
+// can be uses to explicitly set the name and location of the kubeconfig file
+// via the OCI_FLEXD_KUBECONFIG environment variable. If this value is not
+// specified then the default GetConfigDirectory mechanism is used.
+func GetKubeconfigPath() string {
+	kcp := os.Getenv("OCI_FLEXD_KUBECONFIG_PATH")
+	if kcp == "" {
+		kcp = fmt.Sprintf("%s/%s", strings.TrimRight(GetConfigDirectory(), "/"), "kubeconfig")
+	}
+	return kcp
+}
+
 // Init checks that we have the appropriate credentials and metadata API access
 // on driver initialisation.
 func (d OCIFlexvolumeDriver) Init() flexvolume.DriverStatus {
@@ -137,9 +149,9 @@ func deriveVolumeOCID(regionKey string, volumeName string) string {
 }
 
 // constructKubeClient uses a kubeconfig layed down by a secret via deploy.sh to return
-// a kube clientset
+// a kube clientset.
 func constructKubeClient() (*kubernetes.Clientset, error) {
-	fp := GetConfigDirectory() + "/kubeconfig"
+	fp := GetKubeconfigPath()
 
 	c, err := clientcmd.BuildConfigFromFlags("", fp)
 	if err != nil {
