@@ -111,6 +111,7 @@ You can set these in the environment to override the default values.
 `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci`)
 * `OCI_FLEXD_CONFIG_DIRECTORY` - Directory where the driver configuration lives (Default:
 `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/oracle~oci`)
+* `OCI_FLEXD_KUBECONFIG_PATH` - An override to allow the fully qualified path of the kubeconfig resource file to be specified. This take precedence over additional configuration.
 
 ## OCI Policies
 
