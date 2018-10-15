@@ -1,4 +1,4 @@
-box: golang:1.9
+box: iad.ocir.io/spinnaker/oci-kube-ci:1.0.2
 build:
   base-path: "/go/src/github.com/oracle/oci-flexvolume-driver"
   steps:
