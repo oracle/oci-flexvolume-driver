@@ -98,7 +98,7 @@ func GetConfigPath() string {
 
 // GetKubeconfigPath gets the override path of the 'kubeconfig'. This override
 // can be uses to explicitly set the name and location of the kubeconfig file
-// via the OCI_FLEXD_KUBECONFIG environment variable. If this value is not
+// via the OCI_FLEXD_KUBECONFIG_PATH environment variable. If this value is not
 // specified then the default GetConfigDirectory mechanism is used.
 func GetKubeconfigPath() string {
 	kcp := os.Getenv("OCI_FLEXD_KUBECONFIG_PATH")
