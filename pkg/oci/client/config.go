@@ -30,10 +30,11 @@ import (
 )
 
 var ociRegions = map[string]string{
-	"phx": "us-phoenix-1",
 	"iad": "us-ashburn-1",
 	"fra": "eu-frankfurt-1",
 	"lhr": "uk-london-1",
+	"phx": "us-phoenix-1",
+	"yyz": "ca-toronto-1",
 }
 
 // AuthConfig holds the configuration required for communicating with the OCI
