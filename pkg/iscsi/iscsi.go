@@ -141,11 +141,17 @@ func NewFromMountPointPath(mountPath string) (Interface, error) {
 	if err != nil {
 		return nil, err
 	}
-	diskByPath, err := diskByPathForMountPoint(mountPoint)
+	diskByPaths, err := diskByPathsForMountPoint(mountPoint)
 	if err != nil {
 		return nil, err
 	}
-	return NewFromDevicePath(diskByPath)
+	for diskByPath := range(diskByPaths) {
+		iface, err := NewFromDevicePath(diskByPath)
+		if err == nil {
+			return iface, nil
+		}
+	}
+	return nil, errors.New("iSCSI information not found for mount point")
 }
 
 // getISCSIAdmPath gets the absolute path to the iscsiadm executable on the
@@ -303,22 +309,23 @@ func getMountPointForPath(ml mountLister, path string) (mount.MountPoint, error)
 
 // TODO(apryde): Need to think about how best to test this/make it more
 // testable.
-func diskByPathForMountPoint(mountPoint mount.MountPoint) (string, error) {
-	foundErr := errors.New("found")
-	diskByPath := ""
+func diskByPathsForMountPoint(mountPoint mount.MountPoint) ([]string, error) {
+	diskByPaths := []string{}
 	err := filepath.Walk("/dev/disk/by-path/", func(path string, info os.FileInfo, err error) error {
 		target, err := filepath.EvalSymlinks(path)
 		if err != nil {
 			return err
 		}
 		if target == mountPoint.Device {
-			diskByPath = path
-			return foundErr
+			diskByPaths = append(diskByPaths, path)
 		}
 		return nil
 	})
-	if err != foundErr {
+	if err != nil {
 		return "", err
 	}
-	return diskByPath, nil
+	if len(diskByPaths) == 0 {
+		return "", errors.New("Disk by path link not found")
+	}
+	return diskByPaths, nil
 }
