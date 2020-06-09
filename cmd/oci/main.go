@@ -38,7 +38,7 @@ func GetLogPath() string {
 
 func main() {
 	// TODO: Maybe use sirupsen/logrus?
-	f, err := os.OpenFile(GetLogPath(), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	f, err := os.OpenFile(GetLogPath(), os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error opening log file: %v", err)
 		os.Exit(1)
