@@ -1,3 +1,5 @@
+#### :warning: oci-flexvolume-driver is now being maintained at https://github.com/oracle/oci-cloud-controller-manager/tree/master/pkg/flexvolume. This repository will be archived soon.
+---
 # OCI Flexvolume Driver
 
 [![wercker status](https://app.wercker.com/status/9fdba1db3d8e347756aa19819dddc4d5/s/master "wercker status")](https://app.wercker.com/project/byKey/9fdba1db3d8e347756aa19819dddc4d5)
