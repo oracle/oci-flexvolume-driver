@@ -58,7 +58,7 @@ func TestMountInconsistentFileSystems(t *testing.T) {
 	// Mount the new device.
 	device := res.Device
 	mountPoint := "/tmp/" + fw.VolumeName
-	err := os.MkdirAll(mountPoint, 0777)
+	err := os.MkdirAll(mountPoint, 0744)
 	if err != nil {
 		t.Fatalf("Failed to create mountpoint directory: %v", err)
 	}

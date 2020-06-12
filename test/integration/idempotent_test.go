@@ -56,7 +56,7 @@ func TestIdempotent(t *testing.T) {
 
 	// Mount the new device.
 	mountPoint := "/tmp/" + fw.VolumeName
-	err := os.MkdirAll(mountPoint, 0777)
+	err := os.MkdirAll(mountPoint, 0744)
 	if err != nil {
 		t.Fatalf("Failed to create mountpoint directory: %v", err)
 	}

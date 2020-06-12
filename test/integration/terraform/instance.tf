@@ -11,7 +11,7 @@ variable "vcn" {
 }
 
 variable subnet_ocid {
-  default = "ocid1.subnet.oc1.phx.aaaaaaaab7gsl5sqgnxhrjwsg2ztk73c7thwnfzgtkof7h6umoby6e7yaj7q"
+  default = "ocid1.subnet.oc1.phx.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 }
 
 # Gets the OCID of the OS image to use
