@@ -1,4 +1,4 @@
-box: golang:1.9
+box: iad.ocir.io/spinnaker/oci-kube-ci:1.0.2
 build:
   base-path: "/go/src/github.com/oracle/oci-flexvolume-driver"
   steps:
@@ -36,7 +36,7 @@ build:
 
 integration-test:
   box:
-    id: iad.ocir.io/oracle/oci-flexvolume-driver-system-test:1.0.3
+    id: iad.ocir.io/spinnaker/oci-kube-ci:1.0.2
   steps:
     - script:
         name: integration test
@@ -46,7 +46,7 @@ integration-test:
 
 system-test:
   box:
-    id: iad.ocir.io/oracle/oci-flexvolume-driver-system-test:1.0.3
+    id: iad.ocir.io/spinnaker/oci-kube-ci:1.0.2
   steps:
     - script:
       name: set ENV vars
@@ -79,7 +79,7 @@ system-test:
 
 validate-test-image:
   box:
-    id: iad.ocir.io/oracle/oci-flexvolume-driver-system-test:1.0.3
+    id: iad.ocir.io/spinnaker/oci-kube-ci:1.0.2
   steps:
     - script:
       name: set ENV vars
